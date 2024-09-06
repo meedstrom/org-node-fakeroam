@@ -31,6 +31,7 @@
 (require 'ol)
 (require 'org-node)
 (require 'org-node-changes)
+(require 'org-node-parser)
 (require 'org-roam)
 (require 'emacsql)
 
@@ -346,13 +347,6 @@ Emacs instances do not slow down its use.
 ;; 2. Every time we're about to write to the DB, check if the other DB copies
 ;;    have updated, and copy the newest one to overwrite our local copy.
 
-(defun org-node-fakeroam--mk-uniq-db-loc ()
-  "Return a temporary file ending in .db that does not yet exist."
-  (let (path (ctr 0))
-    (while (file-exists-p (setq path (org-node-parser--tmpfile
-                                      "org-roam.%d.db" (cl-incf ctr)))))
-    path))
-
 (defun org-node-fakeroam--overwrite-db ()
   "Update the org-roam SQLite DB on disk.
 During usage, `org-node-fakeroam-db-feed-mode' actually uses a
@@ -363,6 +357,13 @@ instances of Emacs have a connection open."
              (file-newer-than-file-p org-roam-db-location
                                      org-node-fakeroam--orig-db-loc))
     (copy-file org-roam-db-location org-node-fakeroam--orig-db-loc t)))
+
+(defun org-node-fakeroam--mk-uniq-db-loc ()
+  "Return a temporary file ending in .db that does not yet exist."
+  (let (path (ctr 0))
+    (while (file-exists-p (setq path (org-node-parser--tmpfile
+                                      "org-roam.%d.db" (cl-incf ctr)))))
+    path))
 
 (defun org-node-fakeroam--check-simultaneous-dbs ()
   "Ensure `org-roam-db-location' has the newest data.
