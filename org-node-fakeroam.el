@@ -53,12 +53,15 @@
 (declare-function org-roam-db-query "org-roam-db")
 (declare-function org-roam-fontify-like-in-org-mode "org-roam-utils")
 (declare-function org-roam-node-insert-section "org-roam-mode")
+(declare-function org-roam-node-title "org-roam-mode")
+(declare-function org-roam-node-olp "org-roam-mode")
 (declare-function org-roam-preview-get-contents "org-roam-mode")
 (defvar org-roam-buffer)
-(defvar org-roam-dailies-directory)
-(defvar org-roam-db-autosync-mode)
-(defvar org-roam-db-location)
 (defvar org-roam-directory)
+(defvar org-roam-dailies-directory)
+(defvar org-roam-db-location)
+(defvar org-roam-db-autosync-mode)
+(defvar org-roam-db-update-on-save)
 
 ;; TODO: Remove after most users have switched to the Melpa recipes
 (defun org-node-fakeroam--check-compile ()
@@ -69,9 +72,13 @@ did not depend explicitly on org-roam, which meant it had to
 defer compiling org-node-fakeroam.el until runtime after ensuring
 that org-roam is available."
   (if (not (require 'org-roam nil t))
-      (user-error "Install org-roam to use org-node-fakeroam library")
+      (user-error "Install org-roam to use org-node-fakeroam library.
+If you were not using org-node-fakeroam, please install org-node off MELPA, which excludes that module")
     (dolist (fn '(org-node-fakeroam--run-without-fontifying
                   org-node-fakeroam--accelerate-get-contents
+                  org-node-fakeroam--check-uniq-db-locs
+                  org-node-fakeroam--check-simultaneous-dbs
+                  org-node-fakeroam--make-link-props
                   org-node-fakeroam--mk-node
                   org-node-fakeroam--mk-backlinks
                   org-node-fakeroam--mk-reflinks
@@ -169,9 +176,7 @@ which see for FILE and PT."
             (let ((org-inhibit-startup t))
               (delay-mode-hooks
                 ;; NOTE: We cannot use `org-roam-fontify-like-in-org-mode'
-                ;;       since it is temporarily overridden by
-                ;;       `org-node-fakeroam--run-without-fontifying' at the
-                ;;       time this runs.  But that's OK; it looks outdated.
+                ;;       since it is temporarily overridden.
                 (org-fontify-like-in-org-mode (funcall orig-fn file pt)))))))
 
 (defun org-node-fakeroam--run-without-fontifying (orig-fn &rest args)
@@ -209,7 +214,7 @@ the user invokes the command.  Or let the mode
 
 ;;;; JIT method
 ;; Fabricate knockoff Roam backlinks in real time, so that a DB is not needed
-;; to display the Roam buffer
+;; at all for displaying the Roam buffer
 
 (org-node-changes--def-whiny-alias org-node-fakeroam-nosql-mode
                                    org-node-fakeroam-jit-backlinks-mode
@@ -280,7 +285,10 @@ Designed to override `org-roam-backlinks-get'."
                 :target-node target-roam-node
                 :source-node (org-node-fakeroam--mk-node src-node)
                 :point (org-node-link-pos link)
-                :properties (list :outline nil))))))
+                :properties
+                (list :outline
+                      (append (org-node-get-olp src-node)
+                              (list (org-node-get-title src-node)))))))))
 
 (defun org-node-fakeroam--mk-reflinks (target-roam-node &rest _)
   "Make org-roam-reflink objects pointing to TARGET-ROAM-NODE.
@@ -300,41 +308,169 @@ Designed to override `org-roam-reflinks-get'."
                           :ref (org-node-link-dest link)
                           :source-node (org-node-fakeroam--mk-node src-node)
                           :point (org-node-link-pos link)
-                          :properties (list :outline nil))))))))
+                          :properties
+                          (list :outline
+                                (append (org-node-get-olp src-node)
+                                        (list (org-node-get-title src-node)))))))))))
 
 
 ;;;; Feed method: supply data to Roam's DB
+
+
+;; (defun org-node-fakeroam--uniquify-db-loc* (path)
+;;   "Return PATH with an unique number inserted.
+;; The result is a file name that does not \(yet) have a
+;; corresponding file on disk."
+;;   (let ((ctr 0))
+;;     (while (progn
+;;              (setq path (concat (file-name-sans-extension path)
+;;                                 "." (number-to-string (cl-incf ctr)) "."
+;;                                 (file-name-extension path)))
+;;              (unless (member path org-node-fakeroam--db-locs)
+;;                (push path org-node-fakeroam--db-locs))
+;;              (file-exists-p path))))
+;;   path)
+
+;; (defvar org-node-fakeroam--db-locs nil)
+(defvar org-node-fakeroam--orig-db-loc nil)
+(defvar org-node-fakeroam--overwrite-timer (timer-create))
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-db-feed-mode
   "Supply data to the org-roam SQLite database on save.
 
+Actually, reassign `org-roam-db-location' to an unique file name
+and write to that one.  This ensures that multiple concurrent
+Emacs instances do not slow down its use.
+
 -----"
   :global t
   :group 'org-node
-  (if org-node-fakeroam-db-feed-mode
-      (progn
-        (org-node-fakeroam--check-compile)
-        (unless org-node-cache-mode
-          (message "`org-node-fakeroam-db-feed-mode' will do nothing without `org-node-cache-mode'"))
-        (add-hook 'org-node-rescan-functions #'org-node-fakeroam--db-update-files)
-        (add-hook 'kill-emacs-hook #'org-roam-db--close-all))
+  (when (require 'org-node nil t)
+    (org-roam-db--close-all)
+    (cancel-timer org-node-fakeroam--overwrite-timer)
 
-    (remove-hook 'org-node-rescan-functions #'org-node-fakeroam--db-update-files)
-    (unless org-roam-db-autosync-mode
-      (remove-hook 'kill-emacs-hook #'org-roam-db--close-all))))
+    (if org-node-fakeroam-db-feed-mode
+        (progn
+          (org-node-fakeroam--check-compile)
+          (when org-roam-db-update-on-save
+            (message "org-node-fakeroam: You probably want to set `org-roam-db-update-on-save' to nil"))
+          (unless org-node-cache-mode
+            (message "`org-node-fakeroam-db-feed-mode' will do nothing without `org-node-cache-mode'"))
+          (unless (file-writable-p org-roam-db-location)
+            (error "`org-roam-db-location' not writable: %s"
+                   org-roam-db-location))
+          (setq org-node-fakeroam--orig-db-loc org-roam-db-location)
+          (setq org-roam-db-location (org-node-fakeroam--mk-uniq-db-loc))
+          (when (file-readable-p org-node-fakeroam--orig-db-loc)
+            (copy-file org-node-fakeroam--orig-db-loc org-roam-db-location))
+          (setq org-node-fakeroam--overwrite-timer
+                (run-with-idle-timer 60 t #'org-node-fakeroam--overwrite-db))
+          (advice-add 'org-roam-node-insert-section :filter-args
+                      #'org-node-fakeroam--make-link-props)
+          (add-hook 'org-node-rescan-functions
+                    #'org-node-fakeroam--db-update-files)
+          (add-hook 'kill-emacs-hook
+                    #'org-roam-db--close-all))
+
+      (setq org-roam-db-location org-node-fakeroam--orig-db-loc)
+      (advice-remove 'org-roam-node-insert-section
+                     #'org-node-fakeroam--make-link-props)
+      (remove-hook 'org-node-rescan-functions
+                   #'org-node-fakeroam--db-update-files)
+      (unless org-roam-db-autosync-mode
+        (remove-hook 'kill-emacs-hook
+                     #'org-roam-db--close-all)))))
+
+;; REASONABLE USER STORY:
+
+;; - User uses db-feed-mode
+;; - User edits notes in multiple Emacs instances
+;; - User powercycles the computer, cheating `kill-emacs-hook'
+;; - User starts new Emacs
+;; - User expects an up-to-date DB
+
+;; OUR ADDITIONAL REQUIREMENT:
+
+;; - Do not access same DB from multiple Emacs instances
+
+;; SOLUTION:
+
+;; 1. During usage, always work with /tmp/org-roam.X.db, and let an
+;;    intermittent timer copy that one to overwrite the real db -- this
+;;    survives powercycles.
+
+;; 2. Every time we're about to write to the DB, check if the other DB copies
+;;    have updated, and copy the newest one to overwrite our local copy.
+
+(defun org-node-fakeroam--mk-uniq-db-loc ()
+  "Return a temporary file ending in .db that does not yet exist."
+  (let (path (ctr 0))
+    (while (file-exists-p (setq path (org-node-parser--tmpfile
+                                      "org-roam.%d.db" (cl-incf ctr)))))
+    path))
+
+(defun org-node-fakeroam--overwrite-db ()
+  "Update the org-roam SQLite DB on disk.
+During usage, `org-node-fakeroam-db-feed-mode' actually uses a
+temporary file to minimize the performance hit when multiple
+instances of Emacs have a connection open."
+  (when (and (file-readable-p org-roam-db-location)
+             (file-writable-p org-node-fakeroam--orig-db-loc)
+             (file-newer-than-file-p org-roam-db-location
+                                     org-node-fakeroam--orig-db-loc))
+    (copy-file org-roam-db-location org-node-fakeroam--orig-db-loc t)))
+
+(defun org-node-fakeroam--check-simultaneous-dbs ()
+  "Ensure `org-roam-db-location' has the newest data.
+
+Normally, multiple Emacs instances that enable
+`org-node-fakeroam-db-feed-mode' will each have their own DB copy
+in a temporary directory, to avoid the performance hit of one DB
+being handled by several open EmacSQL connections.
+
+This function syncs the current instance\\='s copy with the
+newest copy."
+  (let ((locs (cl-loop
+               for file in (directory-files (org-node-parser--tmpfile)
+                                            t "org-roam" t)
+               when (string-suffix-p "db" file)
+               collect file)))
+    (sort locs #'file-newer-than-file-p)
+    (unless (equal (car locs) org-roam-db-location)
+      (org-roam-db--close-all)
+      (copy-file (car locs) org-roam-db-location t))))
+
+(defun org-node-fakeroam--make-link-props (args)
+  "A :filter-args advice for `org-roam-node-insert-section'.
+Correct the plist ARGS so that the third key, :properties, has a
+value that looks like \(:outline OUTLINE-PATH-TO-THE-NODE).
+
+This info is trivial to reconstruct from the first key,
+:source-node, hence org-node not including it with the link
+objects sent to the DB by `org-node-fakeroam-db-feed-mode',
+where such preconstruction would cost much more compute."
+  (when (require 'org-roam nil t)
+    (let ((roam-node (plist-get args :source-node)))
+      (setf (plist-get args :properties)
+            (list :outline
+                  (append (org-roam-node-olp roam-node)
+                          (list (org-roam-node-title roam-node))))))
+    args))
 
 ;; TODO: Was hoping to just run this on every save.  Is SQLite really so slow
 ;;       to accept 0-2 MB of data?  Must be some way to make it instant.
 ;; (benchmark-run (org-node-fakeroam-db-rebuild))
-;; => (13.048531745 8 2.3832248650000025)
+;; => (6.463400598 7 1.107884319)
 ;; (benchmark-run (org-roam-db-sync 'force))
 ;; => (179.921311207 147 37.955398732)
 (defun org-node-fakeroam-db-rebuild ()
   "Wipe the Roam DB and rebuild."
   (interactive)
   (when (require 'org-roam nil t)
+    (require 'emacsql)
     (org-node-fakeroam--check-compile)
+    (org-node-fakeroam--check-simultaneous-dbs)
     (org-node-cache-ensure)
     (org-roam-db--close)
     (delete-file org-roam-db-location)
@@ -360,9 +496,13 @@ Designed to override `org-roam-reflinks-get'."
 ;; FIXME: Still too slow on a file with 400 nodes.  Profiler says most of
 ;;        it is in EmacSQL, maybe some SQL PRAGMA settings would fix?
 ;;        Or gather all data for one mega `emacsql' call?
+;;        It's also sometimes much slower than other times, seemingly when
+;;        the DB file has a connection open in another instance of Emacs.
 (defun org-node-fakeroam--db-update-files (files)
   "Update the Roam DB about nodes and links involving FILES."
   (when (require 'org-roam nil t)
+    (require 'emacsql)
+    (org-node-fakeroam--check-simultaneous-dbs)
     (emacsql-with-transaction (org-roam-db)
       (dolist (file files)
         (org-roam-db-query [:delete :from files :where (= file $s1)]
@@ -377,29 +517,25 @@ Designed to override `org-roam-reflinks-get'."
            (push file already)
            (org-node-fakeroam--db-add-file-level-data node))
          ;; Clear backlinks to prevent duplicates
+         ;; TODO: Clear citations too
          (dolist (dest (cons (org-node-get-id node)
                              (org-node-get-refs node)))
            (org-roam-db-query [:delete :from links :where (= dest $s1)]
                               dest))
          (org-node-fakeroam--db-add-node node))))))
 
-;; REVIEW: I don't like that this accesses actual files on disk when nothing
-;;         else does.  Maybe the async parser can collect the whole vector that
-;;         this needs, ahead of time.
 (defun org-node-fakeroam--db-add-file-level-data (node)
   "Send to the database the metadata for the file where NODE is."
   (when (require 'org-roam nil t)
     (let* ((file (org-node-get-file-path node))
-           (attr (ignore-errors (file-attributes file))))
+           (mtime (gethash file org-node--file<>mtime)))
       ;; See `org-roam-db-insert-file'
       (org-roam-db-query [:insert :into files :values $v1]
                          (vector file
                                  (org-node-get-file-title node)
-                                 ;; HACK: Costs a lot of time, pass a nil hash
-                                 ;; (ignore-errors (org-roam-db--file-hash file))
-                                 ""
-                                 (file-attribute-access-time attr)
-                                 (file-attribute-modification-time attr))))))
+                                 "" ;; PERF HACK: Pass empty hash
+                                 mtime ;; The atime is not used
+                                 mtime)))))
 
 (defun org-node-fakeroam--db-add-node (node)
   "Send to the SQLite database all we know about NODE.
@@ -468,13 +604,13 @@ This includes all links and citations that touch NODE."
                                        (org-node-link-origin link)
                                        id
                                        (org-node-link-type link)
-                                       (list :outline nil)))
+                                       nil))
           ;; See `org-roam-db-insert-citation'
           (org-roam-db-query [:insert :into citations :values $v1]
                              (vector (org-node-link-origin link)
                                      (org-node-link-dest link)
                                      (org-node-link-pos link)
-                                     (list :outline nil))))))))
+                                     nil)))))))
 
 
 ;;;; Bonus advices
