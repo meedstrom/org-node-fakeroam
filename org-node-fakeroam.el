@@ -77,7 +77,6 @@ See also `org-node-fakeroam-fast-render-mode'.
   :group 'org-node
   (if org-node-fakeroam-redisplay-mode
       (progn
-        (org-node-fakeroam--check-compile)
         (unless org-node-cache-mode
           (message "`org-node-fakeroam-redisplay-mode' may show stale previews without `org-node-cache-mode' enabled"))
         (add-hook 'org-mode-hook #'org-roam-buffer--setup-redisplay-h)
@@ -107,7 +106,6 @@ See also `org-node-fakeroam-fast-render-mode'.
   :group 'org-node
   (if org-node-fakeroam-fast-render-mode
       (progn
-        (org-node-fakeroam--check-compile)
         ;; Undo a thing done by old versions of this package
         (when (boundp 'savehist-additional-variables)
           (delete 'org-node--file<>previews savehist-additional-variables)
@@ -198,7 +196,6 @@ not need it for other things.
   :group 'org-node
   (if org-node-fakeroam-jit-backlinks-mode
       (progn
-        (org-node-fakeroam--check-compile)
         (unless org-node-cache-mode
           (message "`org-node-fakeroam-jit-backlinks-mode' will do poorly without `org-node-cache-mode'"))
         (advice-add 'org-roam-backlinks-get :override
@@ -296,7 +293,6 @@ Emacs instances do not slow down its use.
 
   (if org-node-fakeroam-db-feed-mode
       (progn
-        (org-node-fakeroam--check-compile)
         (when org-roam-db-update-on-save
           (message "org-node-fakeroam: You probably want to set `org-roam-db-update-on-save' to nil"))
         (unless org-node-cache-mode
@@ -410,8 +406,6 @@ where such preconstruction would cost much more compute."
 (defun org-node-fakeroam-db-rebuild ()
   "Wipe the Roam DB and rebuild."
   (interactive)
-  (org-node-fakeroam--check-compile)
-  (org-node-fakeroam--check-simultaneous-dbs)
   (org-node-cache-ensure)
   (org-roam-db--close)
   (delete-file org-roam-db-location)
