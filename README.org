@@ -1,0 +1,3 @@
+* org-node-fakeroam
+
+Some awesome shims for letting https://github.com/meedstrom/org-node control org-roam.  For configuration, search for mentions of "fakeroam" in that README.
