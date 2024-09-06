@@ -84,10 +84,11 @@ See also `org-node-fakeroam-fast-render-mode'.
         (when (boundp 'savehist-additional-variables)
           (delete 'org-node--file<>previews savehist-additional-variables)
           (delete 'org-node--file<>mtime savehist-additional-variables))
-        ;; Don't rely only on `kill-emacs-hook'
-        (run-with-idle-timer 60 t (lambda ()
-                                    (persist-save 'org-node--file<>previews)
-                                    (persist-save 'org-node--file<>mtime)))
+        (unless (memq system-type '(windows-nt ms-dos))
+          ;; Don't rely only on `kill-emacs-hook'
+          (run-with-idle-timer 60 t (lambda ()
+                                      (persist-save 'org-node--file<>previews)
+                                      (persist-save 'org-node--file<>mtime))))
         (advice-add #'org-roam-preview-get-contents :around
                     #'org-node-fakeroam--accelerate-get-contents)
         (advice-add #'org-roam-node-insert-section :around
@@ -153,9 +154,9 @@ the user invokes the command.  Or let the mode
 ;; Fabricate knockoff Roam backlinks in real time, so that a DB is not needed
 ;; at all for displaying the Roam buffer
 
-(org-node-changes--def-whiny-alias org-node-fakeroam-nosql-mode
-                                   org-node-fakeroam-jit-backlinks-mode
-                                   nil "2024-08-18" "2024-09-30")
+(org-node-changes--def-whiny-alias 'org-node-fakeroam-nosql-mode
+                                   'org-node-fakeroam-jit-backlinks-mode
+                                   "2024-08-18" nil "2024-09-30")
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-jit-backlinks-mode
@@ -255,9 +256,9 @@ Designed to override `org-roam-reflinks-get'."
 (define-minor-mode org-node-fakeroam-db-feed-mode
   "Supply data to the org-roam SQLite database on save.
 
-Actually, reassign `org-roam-db-location' to an unique file name
-and write to that one.  This ensures that multiple concurrent
-Emacs instances do not slow down its use.
+Actually, reassign `org-roam-db-location' to an unique temporary
+file name and write to that one for as long as the mode is
+active.
 
 -----"
   :global t
@@ -285,16 +286,25 @@ Emacs instances do not slow down its use.
         (add-hook 'org-node-rescan-functions
                   #'org-node-fakeroam--db-update-files)
         (add-hook 'kill-emacs-hook
+                  #'org-node-fakeroam--delete-db)
+        (add-hook 'kill-emacs-hook
                   #'org-roam-db--close-all))
 
+    (delete-file org-roam-db-location)
     (setq org-roam-db-location org-node-fakeroam--orig-db-loc)
     (advice-remove 'org-roam-node-insert-section
                    #'org-node-fakeroam--make-link-props)
     (remove-hook 'org-node-rescan-functions
                  #'org-node-fakeroam--db-update-files)
+    (remove-hook 'kill-emacs-hook
+                 #'org-node-fakeroam--delete-db)
     (unless org-roam-db-autosync-mode
       (remove-hook 'kill-emacs-hook
                    #'org-roam-db--close-all))))
+
+(defun org-node-fakeroam--delete-db ()
+  "Delete `org-roam-db-location'."
+  (delete-file org-roam-db-location))
 
 ;; REASONABLE USER STORY:
 
@@ -310,7 +320,7 @@ Emacs instances do not slow down its use.
 
 ;; SOLUTION:
 
-;; 1. During usage, always work with /tmp/org-roam.X.db, and let an
+;; 1. During usage, always work with /tmp/.../...X.db, and let an
 ;;    intermittent timer copy that one to overwrite the real db -- this
 ;;    survives powercycles.
 
@@ -338,18 +348,17 @@ instances of Emacs have a connection open."
 (defun org-node-fakeroam--check-simultaneous-dbs ()
   "Ensure `org-roam-db-location' has the newest data.
 
-Normally, multiple Emacs instances that enable
+Multiple Emacs instances that enable
 `org-node-fakeroam-db-feed-mode' will each have their own DB copy
 in a temporary directory, to avoid the performance hit of one DB
 being handled by several open EmacSQL connections.
 
 This function syncs the current instance\\='s copy with the
 newest copy."
-  (let ((locs (cl-loop
-               for file in (directory-files (org-node-parser--tmpfile)
-                                            t "org-roam" t)
-               when (string-suffix-p "db" file)
-               collect file)))
+  (let ((locs (cl-loop for file in (directory-files (org-node-parser--tmpfile)
+                                                    t "org-roam" t)
+                       when (string-suffix-p "db" file)
+                       collect file)))
     (sort locs #'file-newer-than-file-p)
     (unless (equal (car locs) org-roam-db-location)
       (org-roam-db--close-all)
@@ -405,8 +414,6 @@ where such preconstruction would cost much more compute."
 ;; FIXME: Still too slow on a file with 400 nodes.  Profiler says most of
 ;;        it is in EmacSQL, maybe some SQL PRAGMA settings would fix?
 ;;        Or gather all data for one mega `emacsql' call?
-;;        It's also sometimes much slower than other times, seemingly when
-;;        the DB file has a connection open in another instance of Emacs.
 (defun org-node-fakeroam--db-update-files (files)
   "Update the Roam DB about nodes and links involving FILES."
   (org-node-fakeroam--check-simultaneous-dbs)
