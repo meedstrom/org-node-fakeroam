@@ -442,12 +442,14 @@ where such preconstruction would cost much more compute."
   "Send to the database the metadata for the file where NODE is."
   (let* ((file (org-node-get-file-path node))
          (mtime (gethash file org-node--file<>mtime)))
+    ;; Transitional 2024-09-07
+    (setq mtime (if (integerp mtime) (seconds-to-time mtime) mtime))
     ;; See `org-roam-db-insert-file'
     (org-roam-db-query [:insert :into files :values $v1]
                        (vector file
                                (org-node-get-file-title node)
-                               "" ;; PERF HACK: Pass empty hash
-                               mtime ;; The atime is not used
+                               "" ;; HACK PERF: Pass empty hash
+                               mtime ;; HACK: The atime is not used
                                mtime))))
 
 (defun org-node-fakeroam--db-add-node (node)
@@ -561,8 +563,10 @@ See docstring of `org-node-fakeroam-daily-dir'."
       (setq org-node-fakeroam-daily-dir
             (org-node-abbrev-file-names
              (file-truename
-              (file-name-concat org-roam-directory
-                                org-roam-dailies-directory)))))))
+              (if (file-name-absolute-p org-roam-dailies-directory)
+                  org-roam-dailies-directory
+                (file-name-concat org-roam-directory
+                                  org-roam-dailies-directory))))))))
 
 (org-node-fakeroam--remember-roam-dirs)
 (add-hook 'org-node-before-update-tables-hook
@@ -630,10 +634,10 @@ GOTO and KEYS are like in `org-roam-dailies--capture'."
     (setq org-node-proposed-series-key nil)))
 
 ;; DEPRECATED
-;;;###autoload
 (defun org-node-fakeroam-daily-creator (sortstr)
   "Create a daily-note, for a day implied by SORTSTR."
   (declare (obsolete nil "2024-08-21"))
+  (org-node--obsolete-series-warn)
   (org-node-fakeroam-daily-create sortstr "d" t))
 
 (provide 'org-node-fakeroam)
