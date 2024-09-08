@@ -543,9 +543,9 @@ This path should be directly comparable to the paths saved in
 org-node objects, which lets you skip using `file-truename' to
 compare paths.
 
-Rationale: The original `org-roam-dailies-directory' was a
+Rationale: The original `org-roam-dailies-directory' is a
 relative path, which incurred verbosity penalties in all code
-that used it \(plus practically a major performance penalty since
+that used it \(plus a performance penalty since
 `expand-file-name' was often used instead of `file-name-concat').
 
 Even more verbosity is added on top for org-node, which needs to
@@ -583,10 +583,10 @@ See docstring of `org-node-fakeroam-daily-dir'."
 ;; (benchmark-call (byte-compile #'org-roam-dailies--list-files) 10)
 ;; (benchmark-call (byte-compile #'org-node-fakeroam-list-dailies) 10)
 (defun org-node-fakeroam-list-dailies (&rest extra-files)
-  "Faster than `org-roam-dailies--list-files' on a slow fs.
+  "May be faster than `org-roam-dailies--list-files'.
 Makes little difference if your filesystem is not a bottleneck.
+
 For argument EXTRA-FILES, see that function."
-  (require 'org-roam-dailies)
   (append extra-files
           (cl-loop
            for file in (org-node-list-files t)
@@ -596,17 +596,20 @@ For argument EXTRA-FILES, see that function."
 ;; (benchmark-call (byte-compile #'org-roam-dailies--daily-note-p) 1000)
 ;; (benchmark-call (byte-compile #'org-node-fakeroam-daily-note-p) 1000)
 (defun org-node-fakeroam-daily-note-p (&optional file)
-  "Faster than `org-roam-dailies--daily-note-p' on a slow fs.
+  "May be faster than `org-roam-dailies--daily-note-p'.
 Makes little difference if your filesystem is not a bottleneck.
-For argument FILE, see that function."
+
+For argument FILE, see that function.
+
+Does not check `file-truename', so not reliable if your Emacs
+allows variable `buffer-file-name' to be a symlink."
   (setq file (org-node-abbrev-file-names
-              (file-truename (or file
-                                 (buffer-file-name (buffer-base-buffer))))))
+              (or file (buffer-file-name (buffer-base-buffer)))))
   (and (string-suffix-p ".org" file)
        (string-prefix-p (downcase org-node-fakeroam-daily-dir)
                         (downcase file))
-       (not (cl-loop for exclude in org-node-extra-id-dirs-exclude
-                     when (string-search exclude file) return t))))
+       (cl-loop for exclude in org-node-extra-id-dirs-exclude
+                never (string-search exclude file))))
 
 
 ;;;; Series-related
