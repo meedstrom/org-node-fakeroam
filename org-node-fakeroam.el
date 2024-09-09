@@ -18,7 +18,7 @@
 ;; Author:           Martin Edström <meedstrom91@gmail.com>
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
-;; Package-Requires: ((emacs "28.1") (compat "30") (org-node) (org-roam "2.2.2") (emacsql "4.0.0"))
+;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "0.7") (org-roam "2.2.2") (emacsql "4.0.0"))
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
 
 ;;; Commentary:
@@ -85,10 +85,13 @@ See also `org-node-fakeroam-fast-render-mode'.
           (delete 'org-node--file<>previews savehist-additional-variables)
           (delete 'org-node--file<>mtime savehist-additional-variables))
         (unless (memq system-type '(windows-nt ms-dos))
-          ;; Don't rely only on `kill-emacs-hook'
-          (run-with-idle-timer 60 t (lambda ()
-                                      (persist-save 'org-node--file<>previews)
-                                      (persist-save 'org-node--file<>mtime))))
+          ;; For some reason persist.el doesn't bundle an idle timer, so it
+          ;; syncs only on `kill-emacs-hook', which is really dropping the ball
+          ;; at what it's supposed to do
+          (run-with-idle-timer
+           60 t (defun org-node-fakeroam--persist-previews ()
+                  (persist-save 'org-node--file<>previews)
+                  (persist-save 'org-node--file<>mtime))))
         (advice-add #'org-roam-preview-get-contents :around
                     #'org-node-fakeroam--accelerate-get-contents)
         (advice-add #'org-roam-node-insert-section :around
