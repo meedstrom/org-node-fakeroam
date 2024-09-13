@@ -293,8 +293,9 @@ active.
         (add-hook 'kill-emacs-hook
                   #'org-roam-db--close-all))
 
-    (delete-file org-roam-db-location)
-    (setq org-roam-db-location org-node-fakeroam--orig-db-loc)
+    (when org-node-fakeroam--orig-db-loc
+      (delete-file org-roam-db-location)
+      (setq org-roam-db-location org-node-fakeroam--orig-db-loc))
     (advice-remove 'org-roam-node-insert-section
                    #'org-node-fakeroam--make-link-props)
     (remove-hook 'org-node-rescan-functions
