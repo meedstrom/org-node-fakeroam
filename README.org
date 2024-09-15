@@ -2,7 +2,9 @@
 
 Some awesome shims for letting https://github.com/meedstrom/org-node control org-roam.
 
-First, these settings help you feel at home using both org-roam and org-node side-by-side:
+** Suggested setup
+
+These settings help you feel at home using both org-roam and org-node side-by-side:
 
 #+begin_src elisp
 (setq org-node-creation-fn #'org-node-new-via-roam-capture)
