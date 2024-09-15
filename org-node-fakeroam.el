@@ -33,9 +33,13 @@
 (require 'org-node-changes)
 (require 'org-node-parser)
 (require 'org-roam)
+(require 'org-roam-db)
 (require 'emacsql)
 
 (declare-function org-roam-dailies--capture "org-roam-dailies")
+
+
+;;;; Roam buffer display
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-redisplay-mode
@@ -153,7 +157,7 @@ the user invokes the command.  Or let the mode
                  (display-buffer org-roam-buffer))))))
 
 
-;;;; JIT method
+;;;; Backlinks: JIT shim
 ;; Fabricate knockoff Roam backlinks in real time, so that a DB is not needed
 ;; at all for displaying the Roam buffer
 
@@ -250,7 +254,7 @@ Designed to override `org-roam-reflinks-get'."
                                       (list (org-node-get-title src-node))))))))))
 
 
-;;;; Feed method: supply data to Roam's DB
+;;;; Backlinks: Feed-the-db shim
 
 (defvar org-node-fakeroam--orig-db-loc nil)
 (defvar org-node-fakeroam--overwrite-timer (timer-create))
