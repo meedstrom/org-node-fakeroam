@@ -39,7 +39,36 @@
 (declare-function org-roam-dailies--capture "org-roam-dailies")
 
 
-;;;; Roam buffer display
+;;;; Utils
+
+(defun org-node-fakeroam-new-via-roam-capture ()
+  "Call `org-roam-capture-' with predetermined arguments.
+Meant to be called indirectly as `org-node-creation-fn', at which
+time some necessary variables are set."
+  (when (or (null org-node-proposed-title)
+            (null org-node-proposed-id))
+    (error "`org-node-fakeroam-new-via-roam-capture' is meant to be called indirectly via `org-node-create'"))
+  (org-roam-capture- :node (org-roam-node-create
+                            :title org-node-proposed-title
+                            :id    org-node-proposed-id)))
+
+(defun org-node-fakeroam-slugify-via-roam (title)
+  "From TITLE, make a filename slug, using Roam code to do it.
+
+See also `org-node-slugify-like-roam-default', which is effectively the
+same, but insensitive to any customization of Roam."
+  (org-roam-node-slug (org-roam-node-create :title title)))
+
+(define-obsolete-function-alias
+  'org-node-new-via-roam-capture #'org-node-fakeroam-new-via-roam-capture
+  "2024-09-17")
+
+(define-obsolete-function-alias
+  'org-node-slugify-like-roam-actual #'org-node-fakeroam-slugify-via-roam
+  "2024-09-17")
+
+
+;;;; Roam buffer
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-redisplay-mode
@@ -622,7 +651,7 @@ allows variable `buffer-file-name' to be a symlink."
 
 ;;;; Series-related
 
-;; TODO: Somehow make `org-node-new-via-roam-capture' able to do this?
+;; TODO: Somehow make `org-node-fakeroam-new-via-roam-capture' able to do this?
 ;;;###autoload
 (defun org-node-fakeroam-daily-create (ymd series-key &optional goto keys)
   "Create a daily-note, for a day implied by YMD.

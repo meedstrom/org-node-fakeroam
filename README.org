@@ -2,52 +2,69 @@
 
 Some awesome shims for letting https://github.com/meedstrom/org-node control org-roam.
 
-** Suggested setup
+** Fundamental setup
 
 These settings help you feel at home using both org-roam and org-node side-by-side:
 
 #+begin_src elisp
-(setq org-node-creation-fn #'org-node-new-via-roam-capture)
-(setq org-node-slug-fn #'org-node-slugify-like-roam-actual)
+(setq org-node-creation-fn #'org-node-fakeroam-new-via-roam-capture)
+(setq org-node-slug-fn #'org-node-fakeroam-slugify-via-roam)
 (setq org-node-datestamp-format "%Y%m%d%H%M%S-")
 #+end_src
 
-(The mentioned functions will probably relocate into this subpackage soon, but don't worry about the transition, the package will warn you to rename.)
+Please note that if you wish to use the convenient command =org-node-rename-file-by-title=, it is important to get =org-node-datestamp-format= right or it may clobber a pre-existing datestamp.
 
-If you've struggled in the past with big files taking a long time to save, consider these org-roam settings:
+Finally, make sure the underlying org-id knows about the files org-roam knows about.  You'd think it would, but that isn't a given!  Do either of these two:
+
+1. Run =M-x org-roam-update-org-id-locations= every now and then.
+
+2. Edit the following setting so it includes your =org-roam-directory=.  Supposing that is "~/org/", set this:
+
+   #+begin_src elisp
+   (setq org-node-extra-id-dirs '("~/org/"))
+   #+end_src
+
+With that done, go back to the main README and try out the commands in [[https://github.com/meedstrom/org-node#quick-start][Quick start]].  There's more under [[https://github.com/meedstrom/org-node#toolbox][Toolbox]].  Enjoy!
+
+** Speeding up the backlinks buffer
+
+Enable this mode:
+
+#+begin_src elisp
+(org-node-fakeroam-fast-render-mode) ;; build the Roam buffer faster
+#+end_src
+
+You might further speed it up by enabling a mode mentioned in the following section, =org-node-fakeroam-jit-backlinks-mode= -- but read that section first.
+
+** Speeding up the org-roam DB
+
+If you've struggled in the past with big files taking a long time to save, your struggle is over.
+
+First comes a choice: to keep =org-roam-db-autosync-mode= on or to turn it off?  If you keep it on, consider the following settings.
 
 #+begin_src elisp
 (setq org-roam-db-update-on-save nil) ;; don't update DB on save, not needed
 (setq org-roam-link-auto-replace nil) ;; don't look for "roam:" links on save
 #+end_src
 
-And if the backlinks buffer has been laggy:
+If instead you turn it off, you probably want to enable =org-node-fakeroam-redisplay-mode=.  (Surprisingly, Roam's "autosync mode" did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves.)
+
+Second comes another choice: enable one /or both/ of the following modes.
 
 #+begin_src elisp
-(org-node-fakeroam-fast-render-mode) ;; build the Roam buffer faster
+(org-node-fakeroam-db-feed-mode)
+(org-node-fakeroam-jit-backlinks-mode)
 #+end_src
 
-Finally, make sure the underlying org-id knows about the files org-roam knows about.  You'd think it would, but that isn't a given!  Do either of these:
+What do they do?  The *DB-Feed-Mode* keeps the org-roam DB up to date, by writing to it on save.  (I do not use it myself, since I only need backlinks.)
 
-1. Run =M-x org-roam-update-org-id-locations= every now and then.
-
-2. Edit the following setting so it includes your =org-roam-directory=.  Supposing that is "~/org/", set this:
-
-#+begin_src elisp
-(setq org-node-extra-id-dirs '("~/org/"))
-#+end_src
-
-With that done, go back to the main README and try out the commands in [[https://github.com/meedstrom/org-node#quick-start][Quick start]].  There's more under [[https://github.com/meedstrom/org-node#toolbox][Toolbox]].  Enjoy!
-
-** Tip: Speeding up the org-roam DB
-
-You can replace org-roam-db-autosync-mode entirely.  Refer to https://github.com/meedstrom/org-node#backlink-solution-1-borrow-org-roams-backlink-buffer.
+The *JIT-Backlinks-Mode* will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.
 
 ** Tip: On very slow filesystems
 
 I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam ([[https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819][11 seconds just to goto next daily]]!).  A Redditor also said Apple NFS is not ideal for Emacs.
 
-Good news.  You can speed up some functions by making them look up org-node tables and avoid the filesystem:
+Good news.  You can override some functions to make them look up org-node tables and avoid the filesystem:
 
 #+begin_src elisp
 (advice-add #'org-roam-list-files :override
