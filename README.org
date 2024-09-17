@@ -1,6 +1,6 @@
 * org-node-fakeroam
 
-Some awesome shims for letting https://github.com/meedstrom/org-node control org-roam.
+Some awesome shims for integrating [[https://github.com/meedstrom/org-node][org-node]] with org-roam.
 
 ** Fundamental setup
 
@@ -12,19 +12,17 @@ These settings help you feel at home using both org-roam and org-node side-by-si
 (setq org-node-datestamp-format "%Y%m%d%H%M%S-")
 #+end_src
 
-Please note that if you wish to use the convenient command =org-node-rename-file-by-title=, it is important to get =org-node-datestamp-format= right or it may clobber a pre-existing datestamp.
+Please note that if you wish to give the command =org-node-rename-file-by-title= a spin, it is important to get =org-node-datestamp-format= right or it may clobber a pre-existing datestamp.
 
-Finally, make sure the underlying org-id knows about the files org-roam knows about.  You'd think it would, but that isn't a given!  Do either of these two:
+Finally, make sure the underlying org-id package knows about the files org-roam knows about.  You'd think it would, but that isn't a given!  Do either of these two:
 
 1. Run =M-x org-roam-update-org-id-locations= every now and then.
 
 2. Edit the following setting so it includes your =org-roam-directory=.  Supposing that is "~/org/", set this:
 
-   #+begin_src elisp
-   (setq org-node-extra-id-dirs '("~/org/"))
-   #+end_src
-
-With that done, go back to the main README and try out the commands in [[https://github.com/meedstrom/org-node#quick-start][Quick start]].  There's more under [[https://github.com/meedstrom/org-node#toolbox][Toolbox]].  Enjoy!
+#+begin_src elisp
+(setq org-node-extra-id-dirs '("~/org/"))
+#+end_src
 
 ** Speeding up the backlinks buffer
 
@@ -47,7 +45,11 @@ First comes a choice: to keep =org-roam-db-autosync-mode= on or to turn it off? 
 (setq org-roam-link-auto-replace nil) ;; don't look for "roam:" links on save
 #+end_src
 
-If instead you turn it off, you probably want to enable =org-node-fakeroam-redisplay-mode=.  (Surprisingly, Roam's "autosync mode" did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves.)
+If instead you turn it off, you probably want to enable the following mode.  Surprisingly, Roam's "autosync mode" did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves.
+
+#+begin_src elisp
+(org-node-fakeroam-redisplay-mode)
+#+end_src
 
 Second comes another choice: enable one /or both/ of the following modes.
 
@@ -60,7 +62,25 @@ What do they do?  The *DB-Feed-Mode* keeps the org-roam DB up to date, by writin
 
 The *JIT-Backlinks-Mode* will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.
 
-** Tip: On very slow filesystems
+That's it, you're done!  Go back to the [[https://github.com/meedstrom/org-node][org-node README]] (org-node)
+
+** Misc
+*** Tip: Rebuilding the Roam DB
+If you often have reason to full-reset the DB, there is a faster command than =C-u M-x org-roam-db-sync=.  Try =M-x org-node-fakeroam-db-rebuild=.  Benchmark on my device:
+
+- =C-u M-x org-roam-db-sync=: 179 seconds
+- =M-x org-node-fakeroam-db-rebuild=: 6 seconds
+
+Fair warning: a couple of data points will differ.
+
+- Each node will only record local tags, not all inherited tags
+- Each node will only record local properties, not all inherited properties
+- Files' recorded atime will be copied from the mtime
+- Files' recorded content hash will be the blank string
+
+This is a place where I request contributions, since 6 seconds still seems a lot /slower/ than it needs to be.  I envisioned running this function on every save -- that's obviously not possible yet.  The bottleneck seems to be in how EmacSQL is being called.
+
+*** Tip: On very slow filesystems
 
 I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam ([[https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819][11 seconds just to goto next daily]]!).  A Redditor also said Apple NFS is not ideal for Emacs.
 
@@ -77,7 +97,7 @@ Good news.  You can override some functions to make them look up org-node tables
             #'org-node-fakeroam-daily-note-p)
 #+end_src
 
-** Tip: Word-wrap in the Roam buffer?
+*** Tip: Word-wrap in the Roam buffer?
 This has nothing to do with org-node, but I actually didn't know this for ages.
 
 If you don't hard-wrap but prefer visual-line-mode or similar ([[https://github.com/org-roam/org-roam/issues/1862][org-roam#1862]]), you have to enable such modes yourself -- it sensibly doesn't inherit your Org hooks:
