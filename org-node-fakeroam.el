@@ -634,7 +634,7 @@ done.
 
 GOTO and KEYS are like in `org-roam-dailies--capture'."
   (require 'org-roam-dailies)
-  (add-hook 'org-roam-capture-new-node-hook #'org-node--add-series-item)
+  (add-hook 'org-roam-capture-new-node-hook #'org-node--add-series-item 90)
   (setq org-node-proposed-series-key series-key)
   (unwind-protect
       (org-roam-dailies--capture
