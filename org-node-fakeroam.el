@@ -339,6 +339,22 @@ active.
       (remove-hook 'kill-emacs-hook
                    #'org-roam-db--close-all))))
 
+(defun org-node-fakeroam--make-link-props (args)
+  "A :filter-args advice for `org-roam-node-insert-section'.
+Correct the plist ARGS so that the third key, :properties, has a
+value that looks like \(:outline OUTLINE-PATH-TO-THE-NODE).
+
+This info is trivial to reconstruct from the first key,
+:source-node, hence org-node not including it with the link
+objects sent to the DB by `org-node-fakeroam-db-feed-mode',
+where such preconstruction would cost much more compute."
+  (let ((roam-node (plist-get args :source-node)))
+    (setf (plist-get args :properties)
+          (list :outline
+                (append (org-roam-node-olp roam-node)
+                        (list (org-roam-node-title roam-node))))))
+  args)
+
 (defun org-node-fakeroam--delete-db ()
   "Delete `org-roam-db-location'."
   (delete-file org-roam-db-location))
@@ -400,22 +416,6 @@ newest copy."
     (unless (equal (car locs) org-roam-db-location)
       (org-roam-db--close-all)
       (copy-file (car locs) org-roam-db-location t))))
-
-(defun org-node-fakeroam--make-link-props (args)
-  "A :filter-args advice for `org-roam-node-insert-section'.
-Correct the plist ARGS so that the third key, :properties, has a
-value that looks like \(:outline OUTLINE-PATH-TO-THE-NODE).
-
-This info is trivial to reconstruct from the first key,
-:source-node, hence org-node not including it with the link
-objects sent to the DB by `org-node-fakeroam-db-feed-mode',
-where such preconstruction would cost much more compute."
-  (let ((roam-node (plist-get args :source-node)))
-    (setf (plist-get args :properties)
-          (list :outline
-                (append (org-roam-node-olp roam-node)
-                        (list (org-roam-node-title roam-node))))))
-  args)
 
 ;; TODO: Was hoping to just run this on every save.  Is SQLite really so slow
 ;;       to accept 0-2 MB of data?  Must be some way to make it instant.
