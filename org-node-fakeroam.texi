@@ -1,0 +1,191 @@
+\input texinfo    @c -*- texinfo -*-
+@c %**start of header
+@setfilename org-node-fakeroam.info
+@settitle org-node-fakeroam
+@documentencoding UTF-8
+@documentlanguage en
+@c %**end of header
+
+@dircategory Emacs
+@direntry
+* Org-node-fakeroam: (org-node-fakeroam). Integrate org-roam and org-node.
+@end direntry
+
+@finalout
+@titlepage
+@title org-node-fakeroam
+@author Martin Edström
+@end titlepage
+
+@ifnottex
+@node Top
+@top org-node-fakeroam
+
+Some awesome shims for integrating @uref{https://github.com/meedstrom/org-node, org-node} with org-roam.
+
+@end ifnottex
+
+@menu
+* Fundamental setup::
+* Bonus setup::
+
+@detailmenu
+--- The Detailed Node Listing ---
+
+Bonus setup
+
+* Speeding up the backlinks buffer::
+* Speeding up the org-roam DB::
+* Misc::
+
+Misc
+
+* Tip Rebuilding the Roam DB::
+* Tip On very slow filesystems::
+* Tip Word-wrap in the Roam buffer?::
+
+@end detailmenu
+@end menu
+
+@node Fundamental setup
+@chapter Fundamental setup
+
+These settings help you feel at home using both org-roam and org-node side-by-side:
+
+@lisp
+(setq org-node-creation-fn #'org-node-fakeroam-new-via-roam-capture)
+(setq org-node-slug-fn #'org-node-fakeroam-slugify-via-roam)
+(setq org-node-datestamp-format "%Y%m%d%H%M%S-")
+@end lisp
+
+Make sure the underlying org-id package knows about the files org-roam knows about.  You'd think it would, but that isn't a given!  Do either of these two:
+
+@enumerate
+@item
+Run @samp{M-x org-roam-update-org-id-locations} every now and then.
+
+@item
+Edit the following setting so it includes your @samp{org-roam-directory}.  Supposing that is "~/org/", set this:
+@end enumerate
+
+@lisp
+(setq org-node-extra-id-dirs '("~/org/"))
+@end lisp
+
+Finally, restart Emacs or run @samp{M-x org-node-reset}.  Now things should basically function as you expect.
+
+@node Bonus setup
+@chapter Bonus setup
+
+@menu
+* Speeding up the backlinks buffer::
+* Speeding up the org-roam DB::
+* Misc::
+@end menu
+
+@node Speeding up the backlinks buffer
+@section Speeding up the backlinks buffer
+
+Enable this mode:
+
+@lisp
+(org-node-fakeroam-fast-render-mode) ;; build the Roam buffer faster
+@end lisp
+
+You might further speed it up by enabling a mode mentioned in the following section, @samp{org-node-fakeroam-jit-backlinks-mode} -- but read that section first.
+
+@node Speeding up the org-roam DB
+@section Speeding up the org-roam DB
+
+If you've struggled in the past with big files taking a long time to save, your struggle is over.
+
+First comes a choice: to keep @samp{org-roam-db-autosync-mode} on or to turn it off?  If you keep it on, consider the following settings.
+
+@lisp
+(setq org-roam-db-update-on-save nil) ;; don't update DB on save, not needed
+(setq org-roam-link-auto-replace nil) ;; don't look for "roam:" links on save
+@end lisp
+
+If instead you turn it off, you probably want to enable the following mode.  Surprisingly, Roam's "autosync mode" did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves.
+
+@lisp
+(org-node-fakeroam-redisplay-mode) ;; autorefresh the Roam buffer
+@end lisp
+
+Second comes another choice: enable one @emph{or both} of the following modes.
+
+@lisp
+(org-node-fakeroam-db-feed-mode) ;; keep Roam DB up to date
+(org-node-fakeroam-jit-backlinks-mode) ;; skip DB for Roam buffer
+@end lisp
+
+What do they do?  The @strong{DB-Feed-Mode} keeps the org-roam DB up to date, by writing to it on save.  Use it if you use various Roam extensions that need the DB@.  It should be fast, but may still not be instant on a large file.
+
+The @strong{JIT-Backlinks-Mode} will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.
+
+@node Misc
+@section Misc
+
+@menu
+* Tip Rebuilding the Roam DB::
+* Tip On very slow filesystems::
+* Tip Word-wrap in the Roam buffer?::
+@end menu
+
+@node Tip Rebuilding the Roam DB
+@subsection Tip: Rebuilding the Roam DB
+
+If you often have reason to full-reset the DB, there is a faster command than @samp{C-u M-x org-roam-db-sync}.  Try @samp{M-x org-node-fakeroam-db-rebuild}.  Benchmark on my device:
+
+@itemize
+@item
+@samp{C-u M-x org-roam-db-sync}: 179 seconds
+@item
+@samp{M-x org-node-fakeroam-db-rebuild}: 6 seconds
+@end itemize
+
+Fair warning: a couple of data points will differ.
+
+@itemize
+@item
+Each node will only record local tags, not all inherited tags
+@item
+Each node will only record local properties, not all inherited properties
+@item
+Files' recorded atime will be copied from the mtime
+@item
+Files' recorded content hash will be the blank string
+@end itemize
+
+This is a place where I request contributions, since 6 seconds still seems a lot @emph{slower} than it needs to be.  I envisioned running this function on every save -- that's obviously not possible yet.  The bottleneck seems to be in how EmacSQL is being called.
+
+@node Tip On very slow filesystems
+@subsection Tip: On very slow filesystems
+
+I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam (@uref{https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819, 11 seconds just to goto next daily}!).  A Redditor also said Apple NFS is not ideal for Emacs.
+
+Good news.  You can override some functions to make them look up org-node tables and avoid the filesystem:
+
+@lisp
+(advice-add #'org-roam-list-files :override
+            #'org-node-fakeroam-list-files)
+
+(advice-add #'org-roam-dailies--list-files :override
+            #'org-node-fakeroam-list-dailies)
+
+(advice-add #'org-roam-dailies--daily-note-p :override
+            #'org-node-fakeroam-daily-note-p)
+@end lisp
+
+@node Tip Word-wrap in the Roam buffer?
+@subsection Tip: Word-wrap in the Roam buffer?
+
+This has nothing to do with org-node, but I actually didn't know this for ages.
+
+If you don't hard-wrap but prefer visual-line-mode or similar (@uref{https://github.com/org-roam/org-roam/issues/1862, org-roam#1862}), you have to enable such modes yourself -- it sensibly doesn't inherit your Org hooks:
+
+@lisp
+(add-hook 'org-roam-mode-hook #'visual-line-mode)
+@end lisp
+
+@bye

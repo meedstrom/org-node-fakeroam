@@ -110,7 +110,6 @@ See also `org-node-fakeroam-fast-render-mode'.
 -----"
   :global t
   :group 'org-node
-  (cancel-timer org-node-fakeroam--persist-timer)
   (if org-node-fakeroam-fast-render-mode
       (progn
         ;; Cleanup a thing done by old versions of this package
