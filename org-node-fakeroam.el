@@ -19,7 +19,7 @@
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (compat "30") (org-node) (org-roam "2.2.2") (emacsql "4.0.3"))
+;; Package-Requires: ((emacs "28.1") (compat "30") (org-node) (org-roam "2.2.2") (emacsql "4.0.3") (persist "0.6.1"))
 
 ;;; Commentary:
 
@@ -29,6 +29,7 @@
 
 (require 'cl-lib)
 (require 'ol)
+(require 'persist)
 (require 'org-node)
 (require 'org-node-changes)
 (require 'org-node-parser)
@@ -96,6 +97,32 @@ See also `org-node-fakeroam-fast-render-mode'.
         (with-current-buffer buf
           (remove-hook 'post-command-hook #'org-roam-buffer--redisplay-h t))))))
 
+(persist-defvar org-node-fakeroam--saved-previews nil nil)
+(persist-defvar org-node-fakeroam--saved-mtimes nil nil)
+(defvar org-node-fakeroam--persist-timer (timer-create))
+(defun org-node-fakeroam-enable-persist ()
+  "Enable syncing backlink previews to disk.
+
+Only meaningful with `org-node-fakeroam-fast-render-mode' active.
+
+Keep in mind any implications of storing note contents in cleartext in
+`persist--directory-location'."
+  (when org-node-fakeroam--saved-previews
+    (setq org-node--file<>previews org-node-fakeroam--saved-previews))
+  (when org-node-fakeroam--saved-mtimes
+    (setq org-node--file<>mtime org-node-fakeroam--saved-mtimes)
+    ;; Ensure everything is sane
+    (org-node-cache-ensure nil t))
+  (cancel-timer org-node-fakeroam--persist-timer)
+  (setq org-node-fakeroam--persist-timer
+        (run-with-idle-timer 60 t #'org-node-fakeroam--write-previews)))
+
+(defun org-node-fakeroam--write-previews ()
+  "Sync cached previews to disk."
+  (setq org-node-fakeroam--saved-previews org-node--file<>previews)
+  (setq org-node-fakeroam--saved-mtimes org-node--file<>mtime)
+  (persist-save 'org-node-fakeroam--saved-previews)
+  (persist-save 'org-node-fakeroam--saved-mtimes))
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-fast-render-mode
