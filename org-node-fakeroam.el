@@ -18,8 +18,8 @@
 ;; Author:           Martin Edström <meedstrom91@gmail.com>
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
-;; Package-Requires: ((emacs "28.1") (compat "30") (org-node) (org-roam "2.2.2") (emacsql "4.0.0"))
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
+;; Package-Requires: ((emacs "28.1") (compat "30") (org-node) (org-roam "2.2.2") (emacsql "4.0.3"))
 
 ;;; Commentary:
 
@@ -96,6 +96,7 @@ See also `org-node-fakeroam-fast-render-mode'.
         (with-current-buffer buf
           (remove-hook 'post-command-hook #'org-roam-buffer--redisplay-h t))))))
 
+
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-fast-render-mode
   "Advise the Roam buffer to be faster.
@@ -106,25 +107,16 @@ See also `org-node-fakeroam-fast-render-mode'.
 2. Cache the previews, so that there is less or no lag the next
    time the same nodes are visited.
 
-3. Persist this cache on disk.
-
 -----"
   :global t
   :group 'org-node
+  (cancel-timer org-node-fakeroam--persist-timer)
   (if org-node-fakeroam-fast-render-mode
       (progn
-        ;; Undo a thing done by old versions of this package
+        ;; Cleanup a thing done by old versions of this package
         (when (boundp 'savehist-additional-variables)
           (delete 'org-node--file<>previews savehist-additional-variables)
           (delete 'org-node--file<>mtime savehist-additional-variables))
-        (unless (memq system-type '(windows-nt ms-dos))
-          ;; For some reason persist.el doesn't bundle an idle timer, so it
-          ;; syncs only on `kill-emacs-hook', which is really dropping the ball
-          ;; at what it's supposed to do
-          (run-with-idle-timer
-           60 t (defun org-node-fakeroam--persist-previews ()
-                  (persist-save 'org-node--file<>previews)
-                  (persist-save 'org-node--file<>mtime))))
         (advice-add #'org-roam-preview-get-contents :around
                     #'org-node-fakeroam--accelerate-get-contents)
         (advice-add #'org-roam-node-insert-section :around
@@ -478,15 +470,13 @@ newest copy."
 (defun org-node-fakeroam--db-add-file-level-data (node)
   "Send to the database the metadata for the file where NODE is."
   (let* ((file (org-node-get-file-path node))
-         (mtime (gethash file org-node--file<>mtime)))
-    ;; Transitional 2024-09-07
-    (setq mtime (if (integerp mtime) (seconds-to-time mtime) mtime))
+         (mtime (seconds-to-time (gethash file org-node--file<>mtime))))
     ;; See `org-roam-db-insert-file'
     (org-roam-db-query [:insert :into files :values $v1]
                        (vector file
                                (org-node-get-file-title node)
-                               "" ;; HACK PERF: Pass empty hash
-                               mtime ;; HACK: The atime is not used
+                               ""    ; HACK: PERF: Hashing is slow, skip it
+                               mtime ; HACK: Roam doesn't use the atime anyway
                                mtime))))
 
 (defun org-node-fakeroam--db-add-node (node)

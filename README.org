@@ -1,8 +1,17 @@
-* org-node-fakeroam
+#+TITLE: org-node-fakeroam
+#+AUTHOR: Martin Edström
+#+EMAIL: meedstrom91@gmail.com
+#+DATE: 2024
+#+LANGUAGE: en
+#+TEXINFO_DIR_CATEGORY: Emacs
+#+TEXINFO_DIR_TITLE: Org-Node-Fakeroam: (org-node-fakeroam).
+#+TEXINFO_DIR_DESC: Integrate org-roam and org-node.
+#+EXPORT_FILE_NAME: org-node-fakeroam.info
+#+HTML: <a href="https://melpa.org/#/org-node-fakeroam"><img alt="MELPA" src="https://melpa.org/packages/org-node-fakeroam-badge.svg"/></a>
 
 Some awesome shims for integrating [[https://github.com/meedstrom/org-node][org-node]] with org-roam.
 
-** Fundamental setup
+* Fundamental setup
 
 These settings help you feel at home using both org-roam and org-node side-by-side:
 
@@ -12,9 +21,7 @@ These settings help you feel at home using both org-roam and org-node side-by-si
 (setq org-node-datestamp-format "%Y%m%d%H%M%S-")
 #+end_src
 
-Please note that if you wish to give the command =org-node-rename-file-by-title= a spin, it is important to get =org-node-datestamp-format= right or it may clobber a pre-existing datestamp.
-
-Finally, make sure the underlying org-id package knows about the files org-roam knows about.  You'd think it would, but that isn't a given!  Do either of these two:
+Make sure the underlying org-id package knows about the files org-roam knows about.  You'd think it would, but that isn't a given!  Do either of these two:
 
 1. Run =M-x org-roam-update-org-id-locations= every now and then.
 
@@ -24,6 +31,9 @@ Finally, make sure the underlying org-id package knows about the files org-roam 
 (setq org-node-extra-id-dirs '("~/org/"))
 #+end_src
 
+Finally, restart Emacs or run =M-x org-node-reset=.  Now things should basically function as you expect.
+
+* Bonus setup
 ** Speeding up the backlinks buffer
 
 Enable this mode:
@@ -48,21 +58,19 @@ First comes a choice: to keep =org-roam-db-autosync-mode= on or to turn it off? 
 If instead you turn it off, you probably want to enable the following mode.  Surprisingly, Roam's "autosync mode" did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves.
 
 #+begin_src elisp
-(org-node-fakeroam-redisplay-mode)
+(org-node-fakeroam-redisplay-mode) ;; autorefresh the Roam buffer
 #+end_src
 
 Second comes another choice: enable one /or both/ of the following modes.
 
 #+begin_src elisp
-(org-node-fakeroam-db-feed-mode)
-(org-node-fakeroam-jit-backlinks-mode)
+(org-node-fakeroam-db-feed-mode) ;; keep Roam DB up to date
+(org-node-fakeroam-jit-backlinks-mode) ;; skip DB for Roam buffer
 #+end_src
 
-What do they do?  The *DB-Feed-Mode* keeps the org-roam DB up to date, by writing to it on save.  (I do not use it myself, since I only need backlinks.)
+What do they do?  The *DB-Feed-Mode* keeps the org-roam DB up to date, by writing to it on save.  Use it if you use various Roam extensions that need the DB.  It should be fast, but may still not be instant on a large file.
 
 The *JIT-Backlinks-Mode* will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.
-
-That's it, you're done!  Go back to the [[https://github.com/meedstrom/org-node][org-node README]] (org-node)
 
 ** Misc
 *** Tip: Rebuilding the Roam DB
