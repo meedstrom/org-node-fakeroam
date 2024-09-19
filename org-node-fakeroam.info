@@ -7,7 +7,7 @@ START-INFO-DIR-ENTRY
 END-INFO-DIR-ENTRY
 
 
-File: org-node-fakeroam.info,  Node: Top,  Next: Fundamental setup,  Up: (dir)
+File: org-node-fakeroam.info,  Node: Top,  Next: Getting started,  Up: (dir)
 
 org-node-fakeroam
 *****************
@@ -17,7 +17,7 @@ Some awesome shims for integrating org-node
 
 * Menu:
 
-* Fundamental setup::
+* Getting started::
 * Bonus setup::
 
 -- The Detailed Node Listing --
@@ -36,10 +36,10 @@ Misc
 
 
 
-File: org-node-fakeroam.info,  Node: Fundamental setup,  Next: Bonus setup,  Prev: Top,  Up: Top
+File: org-node-fakeroam.info,  Node: Getting started,  Next: Bonus setup,  Prev: Top,  Up: Top
 
-1 Fundamental setup
-*******************
+1 Getting started
+*****************
 
 These settings help you feel at home using both org-roam and org-node
 side-by-side:
@@ -63,7 +63,7 @@ either of these two:
 should basically function as you expect.
 
 
-File: org-node-fakeroam.info,  Node: Bonus setup,  Prev: Fundamental setup,  Up: Top
+File: org-node-fakeroam.info,  Node: Bonus setup,  Prev: Getting started,  Up: Top
 
 2 Bonus setup
 *************
@@ -111,13 +111,13 @@ Roam buffer when the cursor moves.
      (org-node-fakeroam-redisplay-mode) ;; autorefresh the Roam buffer
 
    Second comes another choice: enable one _or both_ of the following
-modes.
+modes!
 
      (org-node-fakeroam-db-feed-mode) ;; keep Roam DB up to date
      (org-node-fakeroam-jit-backlinks-mode) ;; skip DB for Roam buffer
 
    What do they do?  The *DB-Feed-Mode* keeps the org-roam DB up to
-date, by writing to it on save.  Use it if you use various Roam
+date, by writing to it on save.  Use it if you have various Roam
 extensions that need the DB.  It should be fast, but may still not be
 instant on a large file.
 
@@ -186,6 +186,12 @@ org-node tables and avoid the filesystem:
      (advice-add #'org-roam-dailies--daily-note-p :override
                  #'org-node-fakeroam-daily-note-p)
 
+   You can also cache to disk all the Roam buffer contents (bearing in
+mind that this stores cleartext under "~/.emacs.d"), so they do not need
+re-generating if they have not changed:
+
+     (org-node-fakeroam-enable-persist)
+
 
 File: org-node-fakeroam.info,  Node: Tip Word-wrap in the Roam buffer?,  Prev: Tip On very slow filesystems,  Up: Misc
 
@@ -206,14 +212,14 @@ Org hooks:
 
 Tag Table:
 Node: Top234
-Node: Fundamental setup736
-Node: Bonus setup1674
-Node: Speeding up the backlinks buffer1879
-Node: Speeding up the org-roam DB2338
-Node: Misc3850
-Node: Tip Rebuilding the Roam DB4080
-Node: Tip On very slow filesystems5147
-Node: Tip Word-wrap in the Roam buffer?6093
+Node: Getting started732
+Node: Bonus setup1664
+Node: Speeding up the backlinks buffer1867
+Node: Speeding up the org-roam DB2326
+Node: Misc3839
+Node: Tip Rebuilding the Roam DB4069
+Node: Tip On very slow filesystems5136
+Node: Tip Word-wrap in the Roam buffer?6308
 
 End Tag Table
 

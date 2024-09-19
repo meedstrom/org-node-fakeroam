@@ -26,7 +26,7 @@ Some awesome shims for integrating @uref{https://github.com/meedstrom/org-node, 
 @end ifnottex
 
 @menu
-* Fundamental setup::
+* Getting started::
 * Bonus setup::
 
 @detailmenu
@@ -47,8 +47,8 @@ Misc
 @end detailmenu
 @end menu
 
-@node Fundamental setup
-@chapter Fundamental setup
+@node Getting started
+@chapter Getting started
 
 These settings help you feel at home using both org-roam and org-node side-by-side:
 
@@ -112,14 +112,14 @@ If instead you turn it off, you probably want to enable the following mode.  Sur
 (org-node-fakeroam-redisplay-mode) ;; autorefresh the Roam buffer
 @end lisp
 
-Second comes another choice: enable one @emph{or both} of the following modes.
+Second comes another choice: enable one @emph{or both} of the following modes!
 
 @lisp
 (org-node-fakeroam-db-feed-mode) ;; keep Roam DB up to date
 (org-node-fakeroam-jit-backlinks-mode) ;; skip DB for Roam buffer
 @end lisp
 
-What do they do?  The @strong{DB-Feed-Mode} keeps the org-roam DB up to date, by writing to it on save.  Use it if you use various Roam extensions that need the DB@.  It should be fast, but may still not be instant on a large file.
+What do they do?  The @strong{DB-Feed-Mode} keeps the org-roam DB up to date, by writing to it on save.  Use it if you have various Roam extensions that need the DB@.  It should be fast, but may still not be instant on a large file.
 
 The @strong{JIT-Backlinks-Mode} will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.
 
@@ -175,6 +175,12 @@ Good news.  You can override some functions to make them look up org-node tables
 
 (advice-add #'org-roam-dailies--daily-note-p :override
             #'org-node-fakeroam-daily-note-p)
+@end lisp
+
+You can also cache to disk all the Roam buffer contents (bearing in mind that this stores cleartext under "~/.emacs.d"), so they do not need re-generating if they have not changed:
+
+@lisp
+(org-node-fakeroam-enable-persist)
 @end lisp
 
 @node Tip Word-wrap in the Roam buffer?
