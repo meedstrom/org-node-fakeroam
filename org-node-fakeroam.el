@@ -19,7 +19,7 @@
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "0.10") (org-roam "2.2.2") (emacsql "4.0.3") (persist "0.6.1"))
+;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "1.0.0") (org-roam "2.2.2") (emacsql "4.0.3") (persist "0.6.1"))
 
 ;;; Commentary:
 
@@ -97,17 +97,19 @@ See also `org-node-fakeroam-fast-render-mode'.
         (with-current-buffer buf
           (remove-hook 'post-command-hook #'org-roam-buffer--redisplay-h t))))))
 
+;; https://github.com/meedstrom/org-node/issues/26
 (persist-defvar org-node-fakeroam--saved-previews nil nil)
 (persist-defvar org-node-fakeroam--saved-mtimes nil nil)
 (defvar org-node-fakeroam--persist-timer (timer-create))
+
 (defun org-node-fakeroam-setup-persist ()
   "Enable syncing backlink previews to disk.
 
 Only meaningful with `org-node-fakeroam-fast-render-mode' active.
 
-Keep in mind any implications of storing note contents in cleartext in
-`persist--directory-location'!  To undo, see
-`org-node-fakeroam-nuke-persist'."
+Keep in mind it would store note contents in cleartext in
+`persist--directory-location'!  Ensure you are okay with
+that.  To undo, use `org-node-fakeroam-nuke-persist'."
   (when org-node-fakeroam--saved-previews
     (setq org-node--file<>previews org-node-fakeroam--saved-previews))
   (when org-node-fakeroam--saved-mtimes
@@ -116,13 +118,9 @@ Keep in mind any implications of storing note contents in cleartext in
     (org-node-cache-ensure nil t))
   (cancel-timer org-node-fakeroam--persist-timer)
   (setq org-node-fakeroam--persist-timer
-        (run-with-idle-timer 60 t #'org-node-fakeroam--write-persists)))
+        (run-with-idle-timer 60 t #'org-node-fakeroam--do-persist)))
 
-(define-obsolete-function-alias
-  'org-node-fakeroam-enable-persist #'org-node-fakeroam-setup-persist
-  "2024-09-20")
-
-(defun org-node-fakeroam--write-persists ()
+(defun org-node-fakeroam--do-persist ()
   "Sync cached previews to disk."
   (setq org-node-fakeroam--saved-previews org-node--file<>previews)
   (setq org-node-fakeroam--saved-mtimes org-node--file<>mtime)
@@ -138,6 +136,10 @@ Keep in mind any implications of storing note contents in cleartext in
     (let ((file (persist--file-location sym)))
       (when (file-exists-p file)
         (delete-file file)))))
+
+(define-obsolete-function-alias
+  'org-node-fakeroam-enable-persist #'org-node-fakeroam-setup-persist
+  "2024-09-20")
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-fast-render-mode
