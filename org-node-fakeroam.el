@@ -100,13 +100,14 @@ See also `org-node-fakeroam-fast-render-mode'.
 (persist-defvar org-node-fakeroam--saved-previews nil nil)
 (persist-defvar org-node-fakeroam--saved-mtimes nil nil)
 (defvar org-node-fakeroam--persist-timer (timer-create))
-(defun org-node-fakeroam-enable-persist ()
+(defun org-node-fakeroam-setup-persist ()
   "Enable syncing backlink previews to disk.
 
 Only meaningful with `org-node-fakeroam-fast-render-mode' active.
 
 Keep in mind any implications of storing note contents in cleartext in
-`persist--directory-location'."
+`persist--directory-location'!  To undo, see
+`org-node-fakeroam-nuke-persist'."
   (when org-node-fakeroam--saved-previews
     (setq org-node--file<>previews org-node-fakeroam--saved-previews))
   (when org-node-fakeroam--saved-mtimes
@@ -115,14 +116,28 @@ Keep in mind any implications of storing note contents in cleartext in
     (org-node-cache-ensure nil t))
   (cancel-timer org-node-fakeroam--persist-timer)
   (setq org-node-fakeroam--persist-timer
-        (run-with-idle-timer 60 t #'org-node-fakeroam--write-previews)))
+        (run-with-idle-timer 60 t #'org-node-fakeroam--write-persists)))
 
-(defun org-node-fakeroam--write-previews ()
+(define-obsolete-function-alias
+  'org-node-fakeroam-enable-persist #'org-node-fakeroam-setup-persist
+  "2024-09-20")
+
+(defun org-node-fakeroam--write-persists ()
   "Sync cached previews to disk."
   (setq org-node-fakeroam--saved-previews org-node--file<>previews)
   (setq org-node-fakeroam--saved-mtimes org-node--file<>mtime)
   (persist-save 'org-node-fakeroam--saved-previews)
   (persist-save 'org-node-fakeroam--saved-mtimes))
+
+(defun org-node-fakeroam-nuke-persist ()
+  "Unpersist and delete from disk."
+  (cancel-timer org-node-fakeroam--persist-timer)
+  (dolist (sym '(org-node-fakeroam--saved-previews
+                 org-node-fakeroam--saved-mtimes))
+    (persist-unpersist sym)
+    (let ((file (persist--file-location sym)))
+      (when (file-exists-p file)
+        (delete-file file)))))
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-fast-render-mode
