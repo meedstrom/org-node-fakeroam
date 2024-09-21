@@ -4,12 +4,12 @@
 #+DATE: 2024
 #+LANGUAGE: en
 #+TEXINFO_DIR_CATEGORY: Emacs
-#+TEXINFO_DIR_TITLE: Org-node-fakeroam: (org-node-fakeroam).
+#+TEXINFO_DIR_TITLE: Org-node Fakeroam: (org-node-fakeroam).
 #+TEXINFO_DIR_DESC: Integrate org-roam and org-node.
-#+EXPORT_FILE_NAME: org-node-fakeroam.info
+#+EXPORT_FILE_NAME: org-node-fakeroam
 #+HTML: <a href="https://melpa.org/#/org-node-fakeroam"><img alt="MELPA" src="https://melpa.org/packages/org-node-fakeroam-badge.svg"/></a>
 
-Some awesome shims for integrating [[https://github.com/meedstrom/org-node][org-node]] with org-roam.
+This extension supplies a few awesome shims to integrate [[https://github.com/meedstrom/org-node][org-node]] with org-roam.
 
 * Getting started
 
