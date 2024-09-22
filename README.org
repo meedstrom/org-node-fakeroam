@@ -31,7 +31,7 @@ Make sure the underlying org-id package knows about the files org-roam knows abo
 (setq org-node-extra-id-dirs '("~/org/"))
 #+end_src
 
-Finally, restart Emacs or run =M-x org-node-reset=.  Now things should basically function as you expect.
+Finally, restart Emacs or run =M-x org-node-reset=.  Now org-node's commands should function with minimum surprises.
 
 * Bonus setup
 ** Speeding up the backlinks buffer

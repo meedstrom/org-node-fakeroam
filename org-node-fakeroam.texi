@@ -72,7 +72,7 @@ Edit the following setting so it includes your @samp{org-roam-directory}.  Suppo
 (setq org-node-extra-id-dirs '("~/org/"))
 @end lisp
 
-Finally, restart Emacs or run @samp{M-x org-node-reset}.  Now things should basically function as you expect.
+Finally, restart Emacs or run @samp{M-x org-node-reset}.  Now org-node's commands should function with minimum surprises.
 
 @node Bonus setup
 @chapter Bonus setup
