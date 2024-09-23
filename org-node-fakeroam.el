@@ -42,6 +42,7 @@
 
 ;;;; Utils
 
+;;;###autoload
 (defun org-node-fakeroam-new-via-roam-capture ()
   "Call `org-roam-capture-' with predetermined arguments.
 Meant to be called indirectly as `org-node-creation-fn', at which
@@ -53,6 +54,7 @@ time some necessary variables are set."
                             :title org-node-proposed-title
                             :id    org-node-proposed-id)))
 
+;;;###autoload
 (defun org-node-fakeroam-slugify-via-roam (title)
   "From TITLE, make a filename slug, using Roam code to do it.
 
@@ -412,8 +414,8 @@ where such preconstruction would cost much more compute."
 ;;    intermittent timer copy that one to overwrite the real db -- this
 ;;    survives powercycles.
 
-;; 2. Every time we're about to write to the DB, check if the other DB copies
-;;    have updated, and copy the newest one to overwrite our local copy.
+;; 2. Every time we're about to write to the DB, check if the other emacsen's
+;;    DB copies are newer, and copy the newest one to overwrite our local copy.
 
 (defun org-node-fakeroam--overwrite-db ()
   "Update the org-roam SQLite DB on disk.
