@@ -114,10 +114,12 @@ Keep in mind it would store note contents in cleartext in
 that.  To undo, use `org-node-fakeroam-nuke-persist'."
   (when org-node-fakeroam--saved-previews
     (setq org-node--file<>previews org-node-fakeroam--saved-previews))
-  (when org-node-fakeroam--saved-mtimes
-    (setq org-node--file<>mtime org-node-fakeroam--saved-mtimes)
-    ;; Ensure everything is sane
-    (org-node-cache-ensure nil t))
+  (let ((cached-already (not (hash-table-empty-p org-node--file<>mtime))))
+    (when org-node-fakeroam--saved-mtimes
+      (setq org-node--file<>mtime org-node-fakeroam--saved-mtimes)
+      ;; Ensure everything stays sane
+      (when cached-already
+        (org-node-cache-ensure nil t))))
   (cancel-timer org-node-fakeroam--persist-timer)
   (setq org-node-fakeroam--persist-timer
         (run-with-idle-timer 60 t #'org-node-fakeroam--do-persist)))
@@ -152,6 +154,9 @@ that.  To undo, use `org-node-fakeroam-nuke-persist'."
 
 2. Cache the previews, so that there is less or no lag the next
    time the same nodes are visited.
+
+See also `org-node-fakeroam-setup-persist' to persist these caches
+across restarts if you have a slow filesystem.
 
 -----"
   :global t
