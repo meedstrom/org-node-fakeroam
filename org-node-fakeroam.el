@@ -39,6 +39,10 @@
 
 (declare-function org-roam-dailies--capture "org-roam-dailies")
 
+(display-warning
+ 'org-node-fakeroam
+ "This package is no longer updated on the \"melpa\" branch, but \"main\"; change your package recipe")
+
 
 ;;;; Utils
 
@@ -582,7 +586,7 @@ This includes all links and citations that touch NODE."
              olp))
     ;; See `org-roam-db-insert-refs'
     (dolist (ref roam-refs)
-      (let ((type (gethash ref org-node--uri-path<>uri-type)))
+      (let ((type (gethash ref org-node--ref-path<>ref-type)))
         (org-roam-db-query [:insert :into refs :values $v1]
                            (if type
                                ;; Ref is //www.gnu.org or some such
@@ -716,13 +720,6 @@ GOTO and KEYS are like in `org-roam-dailies--capture'."
        goto keys)
     (remove-hook 'org-roam-capture-new-node-hook #'org-node--add-series-item)
     (setq org-node-proposed-series-key nil)))
-
-;; DEPRECATED
-(defun org-node-fakeroam-daily-creator (sortstr)
-  "Create a daily-note, for a day implied by SORTSTR."
-  (declare (obsolete nil "2024-08-21"))
-  (org-node--obsolete-series-warn)
-  (org-node-fakeroam-daily-create sortstr "d" t))
 
 (provide 'org-node-fakeroam)
 
