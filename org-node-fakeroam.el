@@ -104,7 +104,7 @@ See also `org-node-fakeroam-fast-render-mode'.
 (persist-defvar org-node-fakeroam--saved-mtimes nil nil)
 (defvar org-node-fakeroam--persist-timer (timer-create))
 
-(defun org-node-fakeroam-setup-persist ()
+(defun org-node-fakeroam-setup-persistence ()
   "Enable syncing backlink previews to disk.
 
 Only meaningful with `org-node-fakeroam-fast-render-mode' active.
@@ -142,7 +142,11 @@ that.  To undo, use `org-node-fakeroam-nuke-persist'."
         (delete-file file)))))
 
 (define-obsolete-function-alias
-  'org-node-fakeroam-enable-persist #'org-node-fakeroam-setup-persist
+  'org-node-fakeroam-setup-persist #'org-node-fakeroam-setup-persistence
+  "2024-09-30")
+
+(define-obsolete-function-alias
+  'org-node-fakeroam-enable-persist #'org-node-fakeroam-setup-persistence
   "2024-09-20")
 
 ;;;###autoload
@@ -155,7 +159,7 @@ that.  To undo, use `org-node-fakeroam-nuke-persist'."
 2. Cache the previews, so that there is less or no lag the next
    time the same nodes are visited.
 
-See also `org-node-fakeroam-setup-persist' to persist these caches
+See also `org-node-fakeroam-setup-persistence' to persist these caches
 across restarts if you have a slow filesystem.
 
 -----"

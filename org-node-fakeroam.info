@@ -12,9 +12,6 @@ File: org-node-fakeroam.info,  Node: Top,  Next: Getting started,  Up: (dir)
 org-node-fakeroam
 *****************
 
-This extension supplies a few awesome shims to integrate org-node
-(https://github.com/meedstrom/org-node) with org-roam.
-
 * Menu:
 
 * Getting started::
@@ -59,8 +56,8 @@ either of these two:
 
      (setq org-node-extra-id-dirs '("~/org/"))
 
-   Finally, restart Emacs or run ‘M-x org-node-reset’.  Now things
-should basically function as you expect.
+   Finally, run ‘M-x org-node-reset’ or just restart Emacs.  Now
+org-node's commands should function with minimum surprises.
 
 
 File: org-node-fakeroam.info,  Node: Bonus setup,  Prev: Getting started,  Up: Top
@@ -103,16 +100,16 @@ turn it off?  If you keep it on, consider the following settings.
      (setq org-roam-db-update-on-save nil) ;; don't update DB on save, not needed
      (setq org-roam-link-auto-replace nil) ;; don't look for "roam:" links on save
 
-   If instead you turn it off, you may want to enable the following
-mode.  Surprisingly, the autosync mode did a lot of unrelated things
-under one umbrella, such as this, which refreshes the visible Roam
-buffer when the cursor moves into a different entry or the buffer
+   If instead you turn it off (my recommendation), you may want to
+enable the following mode.  The autosync mode did a lot of unrelated
+things under one umbrella, such as this, which refreshes the visible
+Roam buffer when the cursor moves into a different entry or the buffer
 changes.
 
      (org-node-fakeroam-redisplay-mode) ;; autorefresh the Roam buffer
 
-   Second comes the juiciest choice: enable one _or both_ of the
-following modes.
+   Last comes the fun choice: enable one _or both_ of the following
+modes.
 
      (org-node-fakeroam-db-feed-mode) ;; keep Roam DB up to date
      (org-node-fakeroam-jit-backlinks-mode) ;; skip DB for Roam buffer
@@ -188,8 +185,9 @@ org-node tables and avoid the filesystem:
                  #'org-node-fakeroam-daily-note-p)
 
    You can also cache to disk all the Roam buffer contents (bearing in
-mind that this stores cleartext under "~/.emacs.d"), so they do not need
-re-generating if they have not changed:
+mind that this stores potentially world-readable text under
+"~/.emacs.d"), so they do not need re-generating if they have not
+changed:
 
      (org-node-fakeroam-setup-persist)
 
@@ -213,14 +211,14 @@ Org hooks:
 
 Tag Table:
 Node: Top234
-Node: Getting started754
-Node: Bonus setup1686
-Node: Speeding up the backlinks buffer1889
-Node: Speeding up the org-roam DB2348
-Node: Misc3901
-Node: Tip Rebuilding the Roam DB4131
-Node: Tip On very slow filesystems5198
-Node: Tip Word-wrap in the Roam buffer?6369
+Node: Getting started632
+Node: Bonus setup1581
+Node: Speeding up the backlinks buffer1784
+Node: Speeding up the org-roam DB2243
+Node: Misc3795
+Node: Tip Rebuilding the Roam DB4025
+Node: Tip On very slow filesystems5092
+Node: Tip Word-wrap in the Roam buffer?6285
 
 End Tag Table
 

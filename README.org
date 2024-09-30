@@ -9,8 +9,6 @@
 #+EXPORT_FILE_NAME: org-node-fakeroam
 #+HTML: <a href="https://melpa.org/#/org-node-fakeroam"><img alt="MELPA" src="https://melpa.org/packages/org-node-fakeroam-badge.svg"/></a>
 
-This extension supplies a few awesome shims to integrate [[https://github.com/meedstrom/org-node][org-node]] with org-roam.
-
 * Getting started
 
 These settings help you feel at home using both org-roam and org-node side-by-side:
@@ -31,7 +29,7 @@ Make sure the underlying org-id package knows about the files org-roam knows abo
 (setq org-node-extra-id-dirs '("~/org/"))
 #+end_src
 
-Finally, restart Emacs or run =M-x org-node-reset=.  Now org-node's commands should function with minimum surprises.
+Finally, run =M-x org-node-reset= or just restart Emacs.  Now org-node's commands should function with minimum surprises.
 
 * Bonus setup
 ** Speeding up the backlinks buffer
@@ -55,13 +53,13 @@ First comes a choice: to keep =org-roam-db-autosync-mode= on or to turn it off? 
 (setq org-roam-link-auto-replace nil) ;; don't look for "roam:" links on save
 #+end_src
 
-If instead you turn it off, you may want to enable the following mode.  Surprisingly, the autosync mode did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves into a different entry or the buffer changes.
+If instead you turn it off (my recommendation), you may want to enable the following mode.  The autosync mode did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves into a different entry or the buffer changes.
 
 #+begin_src elisp
 (org-node-fakeroam-redisplay-mode) ;; autorefresh the Roam buffer
 #+end_src
 
-Second comes the juiciest choice: enable one /or both/ of the following modes.
+Last comes the fun choice: enable one /or both/ of the following modes.
 
 #+begin_src elisp
 (org-node-fakeroam-db-feed-mode) ;; keep Roam DB up to date
@@ -105,7 +103,7 @@ Good news.  You can override some functions to make them look up org-node tables
             #'org-node-fakeroam-daily-note-p)
 #+end_src
 
-You can also cache to disk all the Roam buffer contents (bearing in mind that this stores cleartext under "~/.emacs.d"), so they do not need re-generating if they have not changed:
+You can also cache to disk all the Roam buffer contents (bearing in mind that this stores potentially world-readable text under "~/.emacs.d"), so they do not need re-generating if they have not changed:
 
 #+begin_src elisp
 (org-node-fakeroam-setup-persist)

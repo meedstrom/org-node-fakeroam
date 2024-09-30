@@ -20,9 +20,6 @@
 @ifnottex
 @node Top
 @top org-node-fakeroam
-
-This extension supplies a few awesome shims to integrate @uref{https://github.com/meedstrom/org-node, org-node} with org-roam.
-
 @end ifnottex
 
 @menu
@@ -72,7 +69,7 @@ Edit the following setting so it includes your @samp{org-roam-directory}.  Suppo
 (setq org-node-extra-id-dirs '("~/org/"))
 @end lisp
 
-Finally, restart Emacs or run @samp{M-x org-node-reset}.  Now org-node's commands should function with minimum surprises.
+Finally, run @samp{M-x org-node-reset} or just restart Emacs.  Now org-node's commands should function with minimum surprises.
 
 @node Bonus setup
 @chapter Bonus setup
@@ -106,13 +103,13 @@ First comes a choice: to keep @samp{org-roam-db-autosync-mode} on or to turn it 
 (setq org-roam-link-auto-replace nil) ;; don't look for "roam:" links on save
 @end lisp
 
-If instead you turn it off, you may want to enable the following mode.  Surprisingly, the autosync mode did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves into a different entry or the buffer changes.
+If instead you turn it off (my recommendation), you may want to enable the following mode.  The autosync mode did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves into a different entry or the buffer changes.
 
 @lisp
 (org-node-fakeroam-redisplay-mode) ;; autorefresh the Roam buffer
 @end lisp
 
-Second comes the juiciest choice: enable one @emph{or both} of the following modes.
+Last comes the fun choice: enable one @emph{or both} of the following modes.
 
 @lisp
 (org-node-fakeroam-db-feed-mode) ;; keep Roam DB up to date
@@ -177,7 +174,7 @@ Good news.  You can override some functions to make them look up org-node tables
             #'org-node-fakeroam-daily-note-p)
 @end lisp
 
-You can also cache to disk all the Roam buffer contents (bearing in mind that this stores cleartext under "~/.emacs.d"), so they do not need re-generating if they have not changed:
+You can also cache to disk all the Roam buffer contents (bearing in mind that this stores potentially world-readable text under "~/.emacs.d"), so they do not need re-generating if they have not changed:
 
 @lisp
 (org-node-fakeroam-setup-persist)
