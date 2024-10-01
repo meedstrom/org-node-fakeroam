@@ -7,7 +7,7 @@
 #+TEXINFO_DIR_TITLE: Org-node Fakeroam: (org-node-fakeroam).
 #+TEXINFO_DIR_DESC: Integrate org-roam and org-node.
 #+EXPORT_FILE_NAME: org-node-fakeroam
-#+HTML: <a href="https://melpa.org/#/org-node-fakeroam"><img alt="MELPA" src="https://melpa.org/packages/org-node-fakeroam-badge.svg"/></a>
+#+HTML: <a href="https://melpa.org/#/org-node-fakeroam"><img alt="MELPA" src="https://melpa.org/packages/org-node-fakeroam-badge.svg"/></a> <a href="https://stable.melpa.org/#/org-node-fakeroam"><img alt="MELPA Stable" src="https://stable.melpa.org/packages/org-node-fakeroam-badge.svg"/></a>
 
 * Getting started
 
@@ -106,7 +106,7 @@ Good news.  You can override some functions to make them look up org-node tables
 You can also cache to disk all the Roam buffer contents (bearing in mind that this stores potentially world-readable text under "~/.emacs.d"), so they do not need re-generating if they have not changed:
 
 #+begin_src elisp
-(org-node-fakeroam-setup-persist)
+(org-node-fakeroam-setup-persistence)
 #+end_src
 
 *** Tip: Word-wrap in the Roam buffer?
