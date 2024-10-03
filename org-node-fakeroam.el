@@ -19,7 +19,7 @@
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "1.3.7") (org-roam "2.2.2") (emacsql "4.0.3"))
+;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "1.4.0") (org-roam "2.2.2") (emacsql "4.0.3"))
 
 ;;; Commentary:
 

@@ -47,7 +47,7 @@ Misc
 @node Getting started
 @chapter Getting started
 
-These settings help you feel at home using both org-roam and org-node side-by-side:
+These settings help you feel at home using both org-roam and @uref{https://github.com/meedstrom/org-node, org-node} side-by-side:
 
 @lisp
 (setq org-node-creation-fn #'org-node-fakeroam-new-via-roam-capture)
@@ -89,7 +89,13 @@ Enable this mode:
 (org-node-fakeroam-fast-render-mode) ;; build the Roam buffer faster
 @end lisp
 
-You might further speed it up by enabling a mode mentioned in the following section, @samp{org-node-fakeroam-jit-backlinks-mode} -- but read that section first.
+You can also enhance the mode by persisting on disk all the preview snippets.  The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
+
+You'd think that this only affects someone who often restarts Emacs, but the nature of notes is such that you can go months between revisits of a given note, and it's so nice for the buffer to still be instant.
+
+@lisp
+(org-node-fakeroam-setup-persistence) ;; cache previews on disk
+@end lisp
 
 @node Speeding up the org-roam DB
 @section Speeding up the org-roam DB
@@ -145,13 +151,11 @@ Fair warning: a couple of data points will differ.
 
 @itemize
 @item
-Each node will only record local tags, not all inherited tags
-@item
 Each node will only record local properties, not all inherited properties
 @item
 Files' recorded atime will be copied from the mtime
 @item
-Files' recorded content hash will be the blank string
+Files' recorded content-hash will be the blank string ""
 @end itemize
 
 This is a place where I request contributions, since 6 seconds still seems a lot @emph{slower} than it needs to be.  I envisioned running this function on every save -- that's obviously not possible yet.  The bottleneck seems to be in how EmacSQL is being called.
@@ -172,12 +176,6 @@ Good news.  You can override some functions to make them look up org-node tables
 
 (advice-add #'org-roam-dailies--daily-note-p :override
             #'org-node-fakeroam-daily-note-p)
-@end lisp
-
-You can also cache to disk all the Roam buffer contents (bearing in mind that this stores potentially world-readable text under "~/.emacs.d"), so they do not need re-generating if they have not changed:
-
-@lisp
-(org-node-fakeroam-setup-persist)
 @end lisp
 
 @node Tip Word-wrap in the Roam buffer?
