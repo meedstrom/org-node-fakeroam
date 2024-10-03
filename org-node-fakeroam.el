@@ -91,46 +91,53 @@ See also `org-node-fakeroam-fast-render-mode'.
           (remove-hook 'post-command-hook #'org-roam-buffer--redisplay-h t))))))
 
 (defvar org-node-fakeroam--id<>previews (make-hash-table :test #'equal)
-  "1:N table mapping files to previews of backlink contexts.
-For use by `org-node-fakeroam--accelerate-get-contents'.
+  "1:N table mapping IDs to previews of backlink contexts.
+For use by `org-node-fakeroam-fast-render-mode'.
 
-Each preview is a cons cell \(REL-POS . TEXT) where the REL-POS
+Each preview is a cons cell \(REL-POS . TEXT) where REL-POS
 corresponds to a link\\='s buffer position relative to that of
-the closest ancestor heading with an ID, and TEXT is a cached
-output of above mentioned function.")
+the heading that has ID, and TEXT is an output of
+`org-roam-preview-get-contents'.")
 
-(defvar org-node-fakeroam-previews-file nil)
+(defcustom org-node-fakeroam-previews-file
+  (file-name-concat (or (bound-and-true-p no-littering-var-directory)
+                        user-emacs-directory)
+                    "org-node-fakeroam-cached-previews.eld")
+  "File containing cached backlink previews.
+Stores the value of table `org-node-fakeroam--id<>previews'
+between sessions.  Only has an effect if user config includes
+calling `org-node-fakeroam-setup-persistence'."
+  :group 'org-node
+  :type 'file)
+
 (defvar org-node-fakeroam--persistence-timer (timer-create))
 (defun org-node-fakeroam-setup-persistence ()
   "Enable syncing backlink previews to disk.
 
 Only meaningful with `org-node-fakeroam-fast-render-mode' active.
 
-Keep in mind it would store note contents in cleartext in
-`persist--directory-location'!  Ensure you are okay with that.
-To disable and clean up, call `org-node-fakeroam-nuke-persistence'."
-  (unless org-node-fakeroam-previews-file
-    (setq org-node-fakeroam-previews-file
-          (file-name-concat (or (bound-and-true-p no-littering-var-directory)
-                                user-emacs-directory)
-                            "org-node-fakeroam-cached-previews.eld")))
+Keep in mind it would store potentially world-readable note
+contents at `org-node-fakeroam-previews-file'!  Ensure you are
+okay with that.  To disable and clean up, call
+`org-node-fakeroam-nuke-persistence'."
   ;; Transition away from deprecated use of persist.el
-  (let ((file (org-node-changes--guess-persist-filename
-               'org-node-fakeroam--saved-previews)))
-    (when (file-exists-p file)
+  (let ((old (org-node-changes--guess-persist-filename
+              'org-node-fakeroam--saved-previews)))
+    (when (file-exists-p old)
       (ignore-errors
-        (rename-file file org-node-fakeroam-previews-file))))
-  (let ((file (org-node-changes--guess-persist-filename
-               'org-node-fakeroam--saved-mtimes)))
-    (when (file-exists-p file)
+        (rename-file old org-node-fakeroam-previews-file t))))
+  (let ((old (org-node-changes--guess-persist-filename
+              'org-node-fakeroam--saved-mtimes)))
+    (when (file-exists-p old)
       (ignore-errors
-        (delete-file file))))
+        (delete-file old))))
   ;; Load from disk
   (when (file-readable-p org-node-fakeroam-previews-file)
     (with-temp-buffer
       (insert-file-contents org-node-fakeroam-previews-file)
-      (let ((data (ignore-errors (car (read-from-string (buffer-string))))))
-        (if data (setq org-node-fakeroam--id<>previews data)))))
+      (when-let ((data (ignore-errors
+                         (car (read-from-string (buffer-string))))))
+        (setq org-node-fakeroam--id<>previews data))))
   (cancel-timer org-node-fakeroam--persistence-timer)
   (setq org-node-fakeroam--persistence-timer
         (run-with-idle-timer 60 t #'org-node-fakeroam--persist-previews)))
