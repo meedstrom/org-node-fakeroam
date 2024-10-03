@@ -19,7 +19,7 @@
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "1.3.5") (org-roam "2.2.2") (emacsql "4.0.3") (persist "0.6.1"))
+;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "1.3.7") (org-roam "2.2.2") (emacsql "4.0.3"))
 
 ;;; Commentary:
 
@@ -29,7 +29,6 @@
 
 (require 'cl-lib)
 (require 'ol)
-(require 'persist)
 (require 'org-node)
 (require 'org-node-changes)
 (require 'org-node-parser)
@@ -100,9 +99,7 @@ corresponds to a link\\='s buffer position relative to that of
 the closest ancestor heading with an ID, and TEXT is a cached
 output of above mentioned function.")
 
-(persist-defvar org-node-fakeroam--saved-previews nil
-  "Copy of `org-node-fakeroam--id<>previews' persisted to disk.")
-
+(defvar org-node-fakeroam-previews-file nil)
 (defvar org-node-fakeroam--persistence-timer (timer-create))
 (defun org-node-fakeroam-setup-persistence ()
   "Enable syncing backlink previews to disk.
@@ -112,27 +109,47 @@ Only meaningful with `org-node-fakeroam-fast-render-mode' active.
 Keep in mind it would store note contents in cleartext in
 `persist--directory-location'!  Ensure you are okay with that.
 To disable and clean up, call `org-node-fakeroam-nuke-persistence'."
-  (when org-node-fakeroam--saved-previews
-    (setq org-node-fakeroam--id<>previews org-node-fakeroam--saved-previews))
+  (unless org-node-fakeroam-previews-file
+    (setq org-node-fakeroam-previews-file
+          (file-name-concat (or (bound-and-true-p no-littering-var-directory)
+                                user-emacs-directory)
+                            "org-node-fakeroam-cached-previews.eld")))
+  ;; Transition away from deprecated use of persist.el
+  (let ((file (org-node-changes--guess-persist-filename
+               'org-node-fakeroam--saved-previews)))
+    (when (file-exists-p file)
+      (ignore-errors
+        (rename-file file org-node-fakeroam-previews-file))))
+  (let ((file (org-node-changes--guess-persist-filename
+               'org-node-fakeroam--saved-mtimes)))
+    (when (file-exists-p file)
+      (ignore-errors
+        (delete-file file))))
+  ;; Load from disk
+  (when (file-readable-p org-node-fakeroam-previews-file)
+    (with-temp-buffer
+      (insert-file-contents org-node-fakeroam-previews-file)
+      (let ((data (ignore-errors (car (read-from-string (buffer-string))))))
+        (if data (setq org-node-fakeroam--id<>previews data)))))
   (cancel-timer org-node-fakeroam--persistence-timer)
   (setq org-node-fakeroam--persistence-timer
-        (run-with-idle-timer 60 t #'org-node-fakeroam--do-persist)))
+        (run-with-idle-timer 60 t #'org-node-fakeroam--persist-previews)))
 
-(defun org-node-fakeroam--do-persist ()
+(defun org-node-fakeroam--persist-previews ()
   "Sync cached previews to disk."
   (org-node-fakeroam-fast-render-clean-cache)
-  (setq org-node-fakeroam--saved-previews org-node-fakeroam--id<>previews)
-  (persist-save 'org-node-fakeroam--saved-previews))
+  (when-let ((buf (find-buffer-visiting org-node-fakeroam-previews-file)))
+    (kill-buffer buf))
+  (write-region (prin1-to-string org-node-fakeroam--id<>previews
+                                 nil
+                                 '((length . nil) (level . nil)))
+                nil
+                org-node-fakeroam-previews-file))
 
 (defun org-node-fakeroam-nuke-persistence ()
   "Unpersist and delete from disk."
   (cancel-timer org-node-fakeroam--persistence-timer)
-  (dolist (sym '(org-node-fakeroam--saved-previews
-                 org-node-fakeroam--saved-mtimes))
-    (persist-unpersist sym)
-    (let ((file (persist--file-location sym)))
-      (when (file-exists-p file)
-        (delete-file file)))))
+  (delete-file org-node-fakeroam-previews-file))
 
 (defun org-node-fakeroam-fast-render-clean-cache ()
   "Clean stale members of `org-node-fakeroam--id<>previews'."
@@ -183,7 +200,7 @@ Argument ORIG-FN is presumably `org-roam-preview-get-contents',
 which expects arguments FILE and PT, where PT is the buffer
 position of a link."
   (unless org-node-fakeroam--temp-src-roam-node
-    (error "org-node-fakeroam: no SOURCE-NODE passed"))
+    (error "org-node-fakeroam: No SOURCE-NODE passed"))
   (let* ((src-id (org-roam-node-id org-node-fakeroam--temp-src-roam-node))
          (src-node (gethash src-id org-node--id<>node)))
     (unless src-node
@@ -299,7 +316,7 @@ not need it for other things.
    :level (org-node-get-level node)
    :title (org-node-get-title node)
    :file-title (org-node-get-file-title node)
-   :tags (org-node-get-tags node)
+   :tags (org-node-get-tags-with-inheritance node)
    :aliases (org-node-get-aliases node)
    :todo (org-node-get-todo node)
    :refs (org-node-get-refs node)
@@ -542,25 +559,25 @@ newest copy."
        (org-node-fakeroam--db-add-node node)))))
 
 (defun org-node-fakeroam--db-add-file-level-data (node)
-  "Send to the database the metadata for the file where NODE is."
+  "Send metadata about the file where NODE is."
   (let* ((file (org-node-get-file-path node))
-         (mtime (seconds-to-time (gethash file org-node--file<>mtime))))
+         (lisp-mtime (seconds-to-time
+                      (car (gethash file org-node--file<>mtime.elapsed)))))
     ;; See `org-roam-db-insert-file'
     (org-roam-db-query [:insert :into files :values $v1]
                        (vector file
                                (org-node-get-file-title node)
-                               ""    ; HACK: PERF: Hashing is slow, skip it
-                               mtime ; HACK: Roam doesn't use the atime anyway
-                               mtime))))
+                               ""         ; HACK: Hashing is slow, skip it
+                               lisp-mtime ; HACK: Roam doesn't use atime anyway
+                               lisp-mtime))))
 
 (defun org-node-fakeroam--db-add-node (node)
   "Send to the SQLite database all we know about NODE.
 This includes all links and citations that touch NODE."
-  ;; PERF: Produce less garbage compared to `let'.  ~20% faster!
-  (cl-symbol-macrolet
+  (cl-symbol-macrolet ;; PERF: 20% less time than `let'
       ((id         (org-node-get-id node))
        (file-path  (org-node-get-file-path node))
-       (tags       (org-node-get-tags node))  ;; NOTE: no inherits!
+       (tags       (org-node-get-tags-with-inheritance node))
        (aliases    (org-node-get-aliases node))
        (roam-refs  (org-node-get-refs node))
        (title      (org-node-get-title node))
