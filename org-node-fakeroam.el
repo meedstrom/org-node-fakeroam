@@ -641,15 +641,15 @@ This includes all links and citations that touch NODE."
           (org-roam-db-query [:insert :into links :values $v1]
                              (vector (org-node-link-pos link)
                                      (org-node-link-origin link)
-                                     id
+                                     (org-node-link-dest link)
                                      (org-node-link-type link)
-                                     nil))
+                                     '(:outline nil)))
         ;; See `org-roam-db-insert-citation'
         (org-roam-db-query [:insert :into citations :values $v1]
                            (vector (org-node-link-origin link)
                                    (org-node-link-dest link)
                                    (org-node-link-pos link)
-                                   nil))))))
+                                   '(:outline nil)))))))
 
 
 ;;;; Bonus advices
