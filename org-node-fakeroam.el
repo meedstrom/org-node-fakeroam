@@ -183,10 +183,11 @@ okay with that.  To disable and clean up, call
   "Intended as around-advice for `org-roam-node-insert-section'.
 
 Run ORIG-FN with ARGS, while overriding
-`org-roam-fontify-like-in-org-mode' so it does nothing.  Also
-copy the SOURCE-NODE argument out of ARGS into the variable
-`org-node-fakeroam--temp-src-roam-node', so that
-`org-node-fakeroam--accelerate-get-contents' can use this
+`org-roam-fontify-like-in-org-mode' so it does nothing.
+
+Before that, inspect ARGS for its SOURCE-NODE argument and store
+it in the variable `org-node-fakeroam--temp-src-roam-node', so
+that `org-node-fakeroam--accelerate-get-contents' can use this
 information."
   (setq org-node-fakeroam--temp-src-roam-node (plist-get args :source-node))
   (cl-letf (((symbol-function 'org-roam-fontify-like-in-org-mode) #'identity))
@@ -460,6 +461,7 @@ where such preconstruction would cost much more compute."
 ;; OUR ADDITIONAL REQUIREMENT:
 
 ;; - Do not access same DB from multiple Emacs instances
+;;   because it seems it can slow down SQL queries
 
 ;; SOLUTION:
 
@@ -508,7 +510,7 @@ newest copy."
       (copy-file (car locs) org-roam-db-location t))))
 
 ;; TODO: Was hoping to just run this on every save.  Is SQLite really so slow
-;;       to accept 0-2 MB of data?  Must be some way to make it instant.
+;;       to accept 0-5 MB of data?  Must be some way to make it instant.
 ;; (benchmark-run (org-node-fakeroam-db-rebuild))
 ;; => (6.463400598 7 1.107884319)
 ;; (benchmark-run (org-roam-db-sync 'force))
@@ -538,9 +540,11 @@ newest copy."
 
 ;; Purpose-focused alternative to `org-node-fakeroam-db-rebuild'
 ;; because that is not instant.
-;; FIXME: Still too slow on a file with 400 nodes.  Profiler says most of
-;;        it is in EmacSQL, maybe some SQL PRAGMA settings would fix?
-;;        Or gather all data for one mega `emacsql' call?
+
+;; FIXME: Still too slow on a file with 400 nodes & 3000 links.
+;;        Profiler says most of it is in EmacSQL, maybe some SQL PRAGMA
+;;        settings would fix?  Or gather all data for one single `emacsql' call?
+;;        Or give up and do it async.
 (defun org-node-fakeroam--db-update-files (files)
   "Update the Roam DB about nodes and links involving FILES."
   (org-node-fakeroam--check-simultaneous-dbs)

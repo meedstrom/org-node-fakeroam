@@ -57,7 +57,7 @@ You might think that this only helps performance for someone who often restarts 
 
 If big files are slow to save, this section is for you.  We will turn off some org-roam stuff and instruct it to look up org-node tables.
 
-BIG PROVISO: if you depend a lot on org-ref, do not proceed!
+BIG PROVISO: if you use the [[https://github.com/jkitchin/org-ref][org-ref]] package, do not proceed!
 
 The org-node tables only contain org-ref v3 citations that were within bracketed links that start with "cite", such as =[[citealt:&demski2019]]=, but not =[[fnotecite:&ioannidis2005]]= since it does not start with "cite", nor =citealt:&fallenstein2015= since it is not wrapped in brackets.
 
@@ -70,7 +70,7 @@ First, let's stop the =org-roam-db-autosync-mode= from doing anything on save.  
 (setq org-roam-link-auto-replace nil) ;; don't look for "roam:" links on save
 #+end_src
 
-If you turn it off, you may want to enable the following mode.  The autosync mode did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves into a different entry or the buffer changes.
+If you turn it off, you may want to enable the following mode.  The autosync mode did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when point moves into a different entry or the buffer changes.
 
 #+begin_src elisp
 (org-node-fakeroam-redisplay-mode) ;; autorefresh the Roam buffer
@@ -85,7 +85,9 @@ Now for the magic trick.  Enable one /or both/ of the following modes.
 
 What do they do?  The *DB-Feed-Mode* keeps the org-roam DB up to date, by writing to it on save.  Use it if you have various Roam extensions that need the DB.  It should be fast, but may still not be instant on a large file.
 
-The *JIT-Backlinks-Mode* will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.  That's right, you can delete the org-roam.db file and the Roam buffer keeps on working!
+If you do not need the DB, I recommend skipping it.
+
+The *JIT-Backlinks-Mode* will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.  That's right, you can even delete the org-roam.db file and the Roam buffer keeps on working!
 
 ** Misc
 *** Tip: Rebuilding the Roam DB
