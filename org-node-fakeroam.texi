@@ -99,7 +99,7 @@ Enable this mode:
 
 You can also enhance the mode by persisting on disk all the preview snippets.  The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
 
-You'd think that this only affects someone who often restarts Emacs, but the nature of notes is such that you can go months between revisits of a given note, and it's so nice for the buffer to still be instant.
+You might think that this only helps performance for someone who often restarts Emacs, but the nature of notes is such that you can go months between revisits of a given note, and it's @emph{so nice} for the buffer to still be instant instead of only near-instant.  IMO, but YMMV@.
 
 @lisp
 (org-node-fakeroam-setup-persistence) ;; cache previews on disk
