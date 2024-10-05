@@ -634,22 +634,23 @@ This includes all links and citations that touch NODE."
                              ;; Ref is a @citekey
                              (vector id ref "cite")))))
 
-    (dolist (link (nconc (org-node-get-id-links node)
-                         (org-node-get-reflinks node)))
-      (if (org-node-link-type link)
-          ;; See `org-roam-db-insert-link'
-          (org-roam-db-query [:insert :into links :values $v1]
-                             (vector (org-node-link-pos link)
-                                     (org-node-link-origin link)
+    (let ((dummy-properties '(:outline nil)))
+      (dolist (link (nconc (org-node-get-id-links-to node)
+                           (org-node-get-reflinks-to node)))
+        (if (org-node-link-type link)
+            ;; See `org-roam-db-insert-link'
+            (org-roam-db-query [:insert :into links :values $v1]
+                               (vector (org-node-link-pos link)
+                                       (org-node-link-origin link)
+                                       (org-node-link-dest link)
+                                       (org-node-link-type link)
+                                       dummy-properties))
+          ;; See `org-roam-db-insert-citation'
+          (org-roam-db-query [:insert :into citations :values $v1]
+                             (vector (org-node-link-origin link)
                                      (org-node-link-dest link)
-                                     (org-node-link-type link)
-                                     '(:outline nil)))
-        ;; See `org-roam-db-insert-citation'
-        (org-roam-db-query [:insert :into citations :values $v1]
-                           (vector (org-node-link-origin link)
-                                   (org-node-link-dest link)
-                                   (org-node-link-pos link)
-                                   '(:outline nil)))))))
+                                     (org-node-link-pos link)
+                                     dummy-properties)))))))
 
 
 ;;;; Bonus advices
@@ -765,13 +766,13 @@ GOTO and KEYS are like in `org-roam-dailies--capture'."
 
 ;;;; Obsolete
 
-(define-obsolete-function-alias
-  'org-node-fakeroam-setup-persist 'org-node-fakeroam-setup-persistence
-  "2024-09-30")
+(org-node-changes--def-whiny-alias
+ 'org-node-fakeroam-setup-persist 'org-node-fakeroam-setup-persistence
+ "2024-09-30" nil "2024 November 30")
 
-(define-obsolete-function-alias
-  'org-node-fakeroam-enable-persist 'org-node-fakeroam-setup-persistence
-  "2024-09-20")
+(org-node-changes--def-whiny-alias
+ 'org-node-fakeroam-enable-persist 'org-node-fakeroam-setup-persistence
+ "2024-09-20" nil "2024 November 30")
 
 (org-node-changes--def-whiny-alias
  'org-node-new-via-roam-capture #'org-node-fakeroam-new-via-roam-capture

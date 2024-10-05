@@ -9,6 +9,9 @@
 #+EXPORT_FILE_NAME: org-node-fakeroam
 #+HTML: <a href="https://melpa.org/#/org-node-fakeroam"><img alt="MELPA" src="https://melpa.org/packages/org-node-fakeroam-badge.svg"/></a> <a href="https://stable.melpa.org/#/org-node-fakeroam"><img alt="MELPA Stable" src="https://stable.melpa.org/packages/org-node-fakeroam-badge.svg"/></a>
 
+* Not just compatibility
+This package can be used in one of two ways: purely to speed up some parts of org-roam, or to use org-node side-by-side with org-roam.
+
 * Getting started
 
 These settings help you feel at home using both org-roam and [[https://github.com/meedstrom/org-node][org-node]] side-by-side:
@@ -50,22 +53,28 @@ You'd think that this only affects someone who often restarts Emacs, but the nat
 
 ** Speeding up the org-roam DB
 
-If you've struggled in the past with big files taking a long time to save, your struggle is over.
+If big files are slow to save, this section is for you.  We will turn off some org-roam stuff and instruct it to look up org-node tables.
 
-First comes a choice: to keep =org-roam-db-autosync-mode= on or to turn it off?  If you keep it on, consider the following settings.
+BIG PROVISO: if you depend a lot on org-ref, do not proceed!
+
+The org-node tables only contain org-ref v3 citations that were within bracketed links that start with "cite", such as =[[citealt:&demski2019]]=, but not =[[fnotecite:&ioannidis2005]]= since it does not start with "cite", nor =citealt:&fallenstein2015= since it is not wrapped in brackets.
+
+------
+
+First, let's stop the =org-roam-db-autosync-mode= from doing anything on save.  Either turn it off, or apply the following settings.
 
 #+begin_src elisp
 (setq org-roam-db-update-on-save nil) ;; don't update DB on save, not needed
 (setq org-roam-link-auto-replace nil) ;; don't look for "roam:" links on save
 #+end_src
 
-If instead you turn it off (my recommendation), you may want to enable the following mode.  The autosync mode did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves into a different entry or the buffer changes.
+If you turn it off, you may want to enable the following mode.  The autosync mode did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves into a different entry or the buffer changes.
 
 #+begin_src elisp
 (org-node-fakeroam-redisplay-mode) ;; autorefresh the Roam buffer
 #+end_src
 
-Last comes the fun choice: enable one /or both/ of the following modes.
+Now for the magic trick.  Enable one /or both/ of the following modes.
 
 #+begin_src elisp
 (org-node-fakeroam-db-feed-mode) ;; keep Roam DB up to date
@@ -74,7 +83,7 @@ Last comes the fun choice: enable one /or both/ of the following modes.
 
 What do they do?  The *DB-Feed-Mode* keeps the org-roam DB up to date, by writing to it on save.  Use it if you have various Roam extensions that need the DB.  It should be fast, but may still not be instant on a large file.
 
-The *JIT-Backlinks-Mode* will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.
+The *JIT-Backlinks-Mode* will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.  That's right, you can delete the org-roam.db file and the Roam buffer keeps on working!
 
 ** Misc
 *** Tip: Rebuilding the Roam DB
@@ -88,6 +97,7 @@ Fair warning: a couple of data points will differ.
 - Each node will only record local properties, not all inherited properties
 - Files' recorded atime will be copied from the mtime
 - Files' recorded content-hash will be the blank string ""
+- (As mentioned earlier) Not all org-ref citations are picked up
 
 This is a place where I request contributions, since 6 seconds still seems a lot /slower/ than it needs to be.  I envisioned running this function on every save -- that's obviously not possible yet.  The bottleneck seems to be in how EmacSQL is being called.
 
