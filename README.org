@@ -9,8 +9,10 @@
 #+EXPORT_FILE_NAME: org-node-fakeroam
 #+HTML: <a href="https://melpa.org/#/org-node-fakeroam"><img alt="MELPA" src="https://melpa.org/packages/org-node-fakeroam-badge.svg"/></a> <a href="https://stable.melpa.org/#/org-node-fakeroam"><img alt="MELPA Stable" src="https://stable.melpa.org/packages/org-node-fakeroam-badge.svg"/></a>
 
-* Not just compatibility
+* Intro
 This package can be used in one of two ways: purely to speed up some parts of org-roam, or to use org-node side-by-side with org-roam.
+
+Either way, =org-node-cache-mode= must be enabled, and it's a good idea to go through the following config.
 
 * Getting started
 

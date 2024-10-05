@@ -23,7 +23,7 @@
 @end ifnottex
 
 @menu
-* Not just compatibility::
+* Intro::
 * Getting started::
 * Bonus setup::
 
@@ -45,10 +45,12 @@ Misc
 @end detailmenu
 @end menu
 
-@node Not just compatibility
-@chapter Not just compatibility
+@node Intro
+@chapter Intro
 
 This package can be used in one of two ways: purely to speed up some parts of org-roam, or to use org-node side-by-side with org-roam.
+
+Either way, @samp{org-node-cache-mode} must be enabled, and it's a good idea to go through the following config.
 
 @node Getting started
 @chapter Getting started
