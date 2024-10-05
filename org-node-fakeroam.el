@@ -244,10 +244,6 @@ across restarts if you have a slow filesystem.
   :group 'org-node
   (if org-node-fakeroam-fast-render-mode
       (progn
-        ;; Cleanup a thing done by old versions of this package
-        (when (boundp 'savehist-additional-variables)
-          (delete 'org-node--file<>previews savehist-additional-variables)
-          (delete 'org-node--file<>mtime savehist-additional-variables))
         (advice-add #'org-roam-preview-get-contents :around
                     #'org-node-fakeroam--accelerate-get-contents)
         (advice-add #'org-roam-node-insert-section :around
@@ -419,7 +415,8 @@ active.
 
     (when org-node-fakeroam--orig-db-loc
       (delete-file org-roam-db-location)
-      (setq org-roam-db-location org-node-fakeroam--orig-db-loc))
+      (setq org-roam-db-location org-node-fakeroam--orig-db-loc)
+      (setq org-node-fakeroam--orig-db-loc nil))
     (advice-remove 'org-roam-node-insert-section
                    #'org-node-fakeroam--make-link-props)
     (remove-hook 'org-node-rescan-functions
@@ -439,11 +436,12 @@ This info is trivial to reconstruct from the first key,
 :source-node, hence org-node not including it with the link
 objects sent to the DB by `org-node-fakeroam-db-feed-mode',
 where such preconstruction would cost much more compute."
-  (let ((roam-node (plist-get args :source-node)))
-    (setf (plist-get args :properties)
-          (list :outline
-                (append (org-roam-node-olp roam-node)
-                        (list (org-roam-node-title roam-node))))))
+  (unless org-node-fakeroam-jit-backlinks-mode ;; Not needed if that is on
+    (let ((roam-node (plist-get args :source-node)))
+      (setf (plist-get args :properties)
+            (list :outline
+                  (append (org-roam-node-olp roam-node)
+                          (list (org-roam-node-title roam-node)))))))
   args)
 
 (defun org-node-fakeroam--delete-db ()
