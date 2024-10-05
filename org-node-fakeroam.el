@@ -142,16 +142,22 @@ okay with that.  To disable and clean up, call
   (setq org-node-fakeroam--persistence-timer
         (run-with-idle-timer 60 t #'org-node-fakeroam--persist-previews)))
 
+(defvar org-node-fakeroam--last-hash 0)
 (defun org-node-fakeroam--persist-previews ()
   "Sync cached previews to disk."
-  (org-node-fakeroam-fast-render-clean-cache)
-  (when-let ((buf (find-buffer-visiting org-node-fakeroam-previews-file)))
-    (kill-buffer buf))
-  (write-region (prin1-to-string org-node-fakeroam--id<>previews
-                                 nil
-                                 '((length . nil) (level . nil)))
-                nil
-                org-node-fakeroam-previews-file))
+  (let ((new-hash (sxhash org-node-fakeroam--id<>previews)))
+    (when (/= org-node-fakeroam--last-hash new-hash)
+      (setq org-node-fakeroam--last-hash new-hash)
+      (org-node-fakeroam-fast-render-clean-cache)
+      (when-let ((buf (find-buffer-visiting org-node-fakeroam-previews-file)))
+        (kill-buffer buf))
+      (write-region (prin1-to-string org-node-fakeroam--id<>previews
+                                     nil
+                                     '((length . nil) (level . nil)))
+                    nil
+                    org-node-fakeroam-previews-file
+                    nil
+                    'quiet))))
 
 (defun org-node-fakeroam-nuke-persistence ()
   "Unpersist and delete from disk."
@@ -770,11 +776,11 @@ GOTO and KEYS are like in `org-roam-dailies--capture'."
 
 (org-node-changes--def-whiny-alias
  'org-node-fakeroam-setup-persist 'org-node-fakeroam-setup-persistence
- "2024-09-30" nil "2024 November 30")
+ "2024-09-30" nil "2024 October 30")
 
 (org-node-changes--def-whiny-alias
  'org-node-fakeroam-enable-persist 'org-node-fakeroam-setup-persistence
- "2024-09-20" nil "2024 November 30")
+ "2024-09-20" nil "2024 October 30")
 
 (org-node-changes--def-whiny-alias
  'org-node-new-via-roam-capture #'org-node-fakeroam-new-via-roam-capture
