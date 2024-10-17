@@ -45,9 +45,9 @@ Enable this mode:
 (org-node-fakeroam-fast-render-mode) ;; build the Roam buffer faster
 #+end_src
 
-Optionally, you can enhance it by persisting on disk all the preview snippets.  The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
+Optionally, you can speed it up further by persisting on disk all the preview snippets.  The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
 
-You might think that this only helps performance for someone who often restarts Emacs, but the nature of notes is such that you can go months between revisits of a given note, and it's /so nice/ for the buffer to still be instant instead of only near-instant.  IMO, but YMMV.
+You might think that this only helps performance for someone who often restarts Emacs, but the nature of notes is such that you can go months between revisits of a given note, and it's /so nice/ for the buffer to still be instant instead of only near-instant.  YMMV; maybe your device is beefy enough anyway.
 
 #+begin_src elisp
 (org-node-fakeroam-setup-persistence) ;; cache previews on disk
@@ -57,9 +57,7 @@ You might think that this only helps performance for someone who often restarts 
 
 If big files are slow to save, this section is for you.  We will turn off some org-roam stuff and instruct it to look up org-node tables.
 
-PROVISO: if you use the [[https://github.com/jkitchin/org-ref][org-ref]] package, do not proceed!
-
-The org-node tables only contain org-ref v3 citations that were within bracketed links that start with "cite", such as =[[citealt:&demski2019]]=, but not =[[fnotecite:&ioannidis2005]]= since it does not start with "cite", nor =citealt:&fallenstein2015= since it is not wrapped in brackets.
+PROVISO: if you use the [[https://github.com/jkitchin/org-ref][org-ref]] package, stop and reconsider!  The org-node tables only collect org-ref v3 citations that were within bracketed links that start with "cite", such as =[[citealt:&demski2019]]=, but NOT =[[fnotecite:&ioannidis2005]]= since it does not start with "cite", NOR =citealt:&fallenstein2015= since it is not wrapped in brackets.
 
 ------
 
