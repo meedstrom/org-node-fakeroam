@@ -137,7 +137,8 @@ okay with that.  To disable and clean up, call
       (insert-file-contents org-node-fakeroam-previews-file)
       (when-let ((data (ignore-errors
                          (car (read-from-string (buffer-string))))))
-        (setq org-node-fakeroam--id<>previews data))))
+        (when (hash-table-p data)
+          (setq org-node-fakeroam--id<>previews data)))))
   (cancel-timer org-node-fakeroam--persistence-timer)
   (setq org-node-fakeroam--persistence-timer
         (run-with-idle-timer 60 t #'org-node-fakeroam--persist-previews)))
