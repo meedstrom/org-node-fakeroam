@@ -5,7 +5,7 @@
 #+LANGUAGE: en
 #+TEXINFO_DIR_CATEGORY: Emacs
 #+TEXINFO_DIR_TITLE: Org-node Fakeroam: (org-node-fakeroam).
-#+TEXINFO_DIR_DESC: Integrate org-roam and org-node.
+#+TEXINFO_DIR_DESC: Integrate org-roam with org-node.
 #+EXPORT_FILE_NAME: org-node-fakeroam
 #+HTML: <a href="https://melpa.org/#/org-node-fakeroam"><img alt="MELPA" src="https://melpa.org/packages/org-node-fakeroam-badge.svg"/></a> <a href="https://stable.melpa.org/#/org-node-fakeroam"><img alt="MELPA Stable" src="https://stable.melpa.org/packages/org-node-fakeroam-badge.svg"/></a>
 
@@ -45,7 +45,7 @@ Enable this mode:
 (org-node-fakeroam-fast-render-mode) ;; build the Roam buffer faster
 #+end_src
 
-You can also enhance the mode by persisting on disk all the preview snippets.  The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
+Optionally, you can enhance it by persisting on disk all the preview snippets.  The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
 
 You might think that this only helps performance for someone who often restarts Emacs, but the nature of notes is such that you can go months between revisits of a given note, and it's /so nice/ for the buffer to still be instant instead of only near-instant.  IMO, but YMMV.
 
@@ -57,7 +57,7 @@ You might think that this only helps performance for someone who often restarts 
 
 If big files are slow to save, this section is for you.  We will turn off some org-roam stuff and instruct it to look up org-node tables.
 
-BIG PROVISO: if you use the [[https://github.com/jkitchin/org-ref][org-ref]] package, do not proceed!
+PROVISO: if you use the [[https://github.com/jkitchin/org-ref][org-ref]] package, do not proceed!
 
 The org-node tables only contain org-ref v3 citations that were within bracketed links that start with "cite", such as =[[citealt:&demski2019]]=, but not =[[fnotecite:&ioannidis2005]]= since it does not start with "cite", nor =citealt:&fallenstein2015= since it is not wrapped in brackets.
 
@@ -98,12 +98,12 @@ If you often have reason to full-reset the DB, there is a faster command than =C
 
 Fair warning: a couple of data points will differ.
 
-- Each node will only record local properties, not all inherited properties
-- Files' recorded atime will be copied from the mtime
-- Files' recorded content-hash will be the blank string ""
 - (As mentioned earlier) Not all org-ref citations are picked up
+- Files' recorded content-hash will be the blank string ""
+- Files' recorded atime will be copied from the mtime
+- Each node will record all fields in its =PROPERTIES= drawer as it exists on disk, but not implicit fields like =CATEGORY= or =TIMESTAMP_IA=
 
-This is a place where I request contributions, since 6 seconds still seems a lot /slower/ than it needs to be.  I envisioned running this function on every save -- that's obviously not possible yet.  The bottleneck seems to be in how EmacSQL is being called.
+This is a place where I request contributions, since 6 seconds still seems a lot slower than it needs to be.  I envisioned running this function on every save -- that's obviously not possible yet.  The bottleneck seems to be in how EmacSQL is being called.
 
 *** Tip: On very slow filesystems
 

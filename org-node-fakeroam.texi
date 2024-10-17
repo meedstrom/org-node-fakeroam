@@ -8,7 +8,7 @@
 
 @dircategory Emacs
 @direntry
-* Org-node Fakeroam: (org-node-fakeroam). Integrate org-roam and org-node.
+* Org-node Fakeroam: (org-node-fakeroam). Integrate org-roam with org-node.
 @end direntry
 
 @finalout
@@ -97,7 +97,7 @@ Enable this mode:
 (org-node-fakeroam-fast-render-mode) ;; build the Roam buffer faster
 @end lisp
 
-You can also enhance the mode by persisting on disk all the preview snippets.  The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
+Optionally, you can enhance it by persisting on disk all the preview snippets.  The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
 
 You might think that this only helps performance for someone who often restarts Emacs, but the nature of notes is such that you can go months between revisits of a given note, and it's @emph{so nice} for the buffer to still be instant instead of only near-instant.  IMO, but YMMV@.
 
@@ -110,7 +110,7 @@ You might think that this only helps performance for someone who often restarts 
 
 If big files are slow to save, this section is for you.  We will turn off some org-roam stuff and instruct it to look up org-node tables.
 
-BIG PROVISO: if you depend a lot on org-ref, do not proceed!
+PROVISO: if you use the @uref{https://github.com/jkitchin/org-ref, org-ref} package, do not proceed!
 
 The org-node tables only contain org-ref v3 citations that were within bracketed links that start with "cite", such as @samp{[[citealt:&demski2019]]}, but not @samp{[[fnotecite:&ioannidis2005]]} since it does not start with "cite", nor @samp{citealt:&fallenstein2015} since it is not wrapped in brackets.
 
@@ -121,7 +121,7 @@ First, let's stop the @samp{org-roam-db-autosync-mode} from doing anything on sa
 (setq org-roam-link-auto-replace nil) ;; don't look for "roam:" links on save
 @end lisp
 
-If you turn it off, you may want to enable the following mode.  The autosync mode did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when the cursor moves into a different entry or the buffer changes.
+If you turn it off, you may want to enable the following mode.  The autosync mode did a lot of unrelated things under one umbrella, such as this, which refreshes the visible Roam buffer when point moves into a different entry or the buffer changes.
 
 @lisp
 (org-node-fakeroam-redisplay-mode) ;; autorefresh the Roam buffer
@@ -136,7 +136,9 @@ Now for the magic trick.  Enable one @emph{or both} of the following modes.
 
 What do they do?  The @strong{DB-Feed-Mode} keeps the org-roam DB up to date, by writing to it on save.  Use it if you have various Roam extensions that need the DB@.  It should be fast, but may still not be instant on a large file.
 
-The @strong{JIT-Backlinks-Mode} will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.  That's right, you can delete the org-roam.db file and the Roam buffer keeps on working!
+If you do not need the DB, I recommend skipping it.
+
+The @strong{JIT-Backlinks-Mode} will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.  That's right, you can even delete the org-roam.db file and the Roam buffer keeps on working!
 
 @node Misc
 @section Misc
@@ -163,16 +165,16 @@ Fair warning: a couple of data points will differ.
 
 @itemize
 @item
-Each node will only record local properties, not all inherited properties
-@item
-Files' recorded atime will be copied from the mtime
+(As mentioned earlier) Not all org-ref citations are picked up
 @item
 Files' recorded content-hash will be the blank string ""
 @item
-(As mentioned earlier) Not all org-ref citations are picked up
+Files' recorded atime will be copied from the mtime
+@item
+Each node will record all fields in its @samp{PROPERTIES} drawer as it exists on disk, but not implicit fields like @samp{CATEGORY} or @samp{TIMESTAMP_IA}
 @end itemize
 
-This is a place where I request contributions, since 6 seconds still seems a lot @emph{slower} than it needs to be.  I envisioned running this function on every save -- that's obviously not possible yet.  The bottleneck seems to be in how EmacSQL is being called.
+This is a place where I request contributions, since 6 seconds still seems a lot slower than it needs to be.  I envisioned running this function on every save -- that's obviously not possible yet.  The bottleneck seems to be in how EmacSQL is being called.
 
 @node Tip On very slow filesystems
 @subsection Tip: On very slow filesystems
