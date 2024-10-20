@@ -79,15 +79,15 @@ See also `org-node-fakeroam-fast-render-mode'.
   :group 'org-node
   (if org-node-fakeroam-redisplay-mode
       (progn
-        (unless org-node-cache-mode
-          (message "`org-node-fakeroam-redisplay-mode' may show stale previews without `org-node-cache-mode' enabled"))
         (add-hook 'org-mode-hook #'org-roam-buffer--setup-redisplay-h)
         (dolist (buf (org-buffer-list 'files t))
           (with-current-buffer buf
             (add-hook 'post-command-hook #'org-roam-buffer--redisplay-h nil t))))
     (remove-hook 'org-mode-hook #'org-roam-buffer--setup-redisplay-h)
-    (unless org-roam-db-autosync-mode
-      (dolist (buf (org-buffer-list 'files t))
+    (unless (and org-roam-db-autosync-mode
+                 (member #'org-roam-buffer--setup-redisplay-h
+                         org-roam-find-file-hook))
+      (dolist (buf (org-buffer-list))
         (with-current-buffer buf
           (remove-hook 'post-command-hook #'org-roam-buffer--redisplay-h t))))))
 
@@ -95,9 +95,9 @@ See also `org-node-fakeroam-fast-render-mode'.
   "1:N table mapping IDs to previews of backlink contexts.
 For use by `org-node-fakeroam-fast-render-mode'.
 
-Each preview is a cons cell \(REL-POS . TEXT) where REL-POS
+Each preview is a cons cell \(POS-DIFF . TEXT) where POS-DIFF
 corresponds to a link\\='s buffer position relative to that of
-the heading that has ID, and TEXT is an output of
+the heading that has said ID, and TEXT is an output of
 `org-roam-preview-get-contents'.")
 
 (defcustom org-node-fakeroam-previews-file
@@ -107,134 +107,86 @@ the heading that has ID, and TEXT is an output of
                         user-emacs-directory)
                     "org-node-fakeroam-cached-previews.eld")
   "File containing cached backlink previews.
-Stores the value of table `org-node-fakeroam--id<>previews'
-between sessions.  Only has an effect if user config includes
-calling `org-node-fakeroam-setup-persistence'."
+Stores the value of table `org-node-fakeroam--id<>previews' between
+sessions.  Only has an effect if `org-node-fakeroam-persist-previews'
+is non-nil."
   :group 'org-node
   :type 'file)
 
-(defvar org-node-fakeroam--persistence-timer (timer-create))
-(defun org-node-fakeroam-setup-persistence ()
-  "Enable syncing backlink previews to disk.
+(defcustom org-node-fakeroam-persist-previews nil
+  "Whether to sync backlink previews to disk.
 
 Only meaningful with `org-node-fakeroam-fast-render-mode' active.
 
-Keep in mind it would store potentially world-readable note
-contents at `org-node-fakeroam-previews-file'!  Ensure you are
-okay with that.  To disable and clean up, call
-`org-node-fakeroam-nuke-persistence'."
-  ;; Transition away from deprecated use of persist.el
-  (let ((old (org-node-changes--guess-persist-filename
-              'org-node-fakeroam--saved-previews)))
-    (when (file-exists-p old)
-      (ignore-errors
-        (rename-file old org-node-fakeroam-previews-file t))))
-  (let ((old (org-node-changes--guess-persist-filename
-              'org-node-fakeroam--saved-mtimes)))
-    (when (file-exists-p old)
-      (ignore-errors
-        (delete-file old))))
-  ;; Load from disk
-  (when (file-readable-p org-node-fakeroam-previews-file)
-    (with-temp-buffer
-      (insert-file-contents org-node-fakeroam-previews-file)
-      (when-let ((data (ignore-errors
-                         (car (read-from-string (buffer-string))))))
-        (when (hash-table-p data)
-          (setq org-node-fakeroam--id<>previews data)))))
-  (cancel-timer org-node-fakeroam--persistence-timer)
-  (setq org-node-fakeroam--persistence-timer
-        (run-with-idle-timer 60 t #'org-node-fakeroam--persist-previews)))
+Keep in mind it would store potentially world-readable note contents at
+`org-node-fakeroam-previews-file'.  That may be moot at the moment, as
+org-node itself does the same under /tmp (or variable
+`temporary-file-directory')."
+  :group 'org-node
+  :type 'boolean)
 
-(defvar org-node-fakeroam--last-hash 0)
-(defun org-node-fakeroam--persist-previews ()
-  "Sync cached previews to disk."
-  (let ((new-hash (sxhash org-node-fakeroam--id<>previews)))
-    (when (/= org-node-fakeroam--last-hash new-hash)
-      (setq org-node-fakeroam--last-hash new-hash)
-      (org-node-fakeroam-fast-render-clean-cache)
-      (when-let ((buf (find-buffer-visiting org-node-fakeroam-previews-file)))
-        (kill-buffer buf))
-      (write-region (prin1-to-string org-node-fakeroam--id<>previews
-                                     nil
-                                     '((length . nil) (level . nil)))
-                    nil
-                    org-node-fakeroam-previews-file
-                    nil
-                    'quiet))))
+(defvar org-node-fakeroam--last-hash -1)
+(defun org-node-fakeroam--fast-render-persist-maybe ()
+  "Maybe sync cached previews to disk."
+  (when org-node-fakeroam-persist-previews
+    (let ((hash (sxhash org-node-fakeroam--id<>previews)))
+      ;; Only proceed if the table has changed
+      (when (/= org-node-fakeroam--last-hash hash)
+        (setq org-node-fakeroam--last-hash hash)
+        (org-node-fakeroam--clean-stale-previews)
+        (let ((buf (find-buffer-visiting org-node-fakeroam-previews-file)))
+          (when buf (kill-buffer buf)))
+        (write-region (prin1-to-string org-node-fakeroam--id<>previews
+                                       nil
+                                       '((length . nil) (level . nil)))
+                      nil
+                      org-node-fakeroam-previews-file
+                      nil
+                      'quiet)))))
 
-(defun org-node-fakeroam-nuke-persistence ()
-  "Unpersist and delete from disk."
-  (cancel-timer org-node-fakeroam--persistence-timer)
-  (delete-file org-node-fakeroam-previews-file))
-
-(defun org-node-fakeroam-fast-render-clean-cache ()
+(defun org-node-fakeroam--clean-stale-previews ()
   "Clean stale members of `org-node-fakeroam--id<>previews'."
-  (interactive)
   (let ((valid-positions (make-hash-table :test #'equal)))
-    (cl-loop
-     for links being each hash-value of org-node--dest<>links do
-     (cl-loop
-      for link in links
-      do (push (org-node-link-pos link)
-               (gethash (org-node-link-origin link) valid-positions))))
+    (cl-loop for links being each hash-value of org-node--dest<>links do
+             (dolist (link links)
+               (push (org-node-link-pos link)
+                     (gethash (org-node-link-origin link) valid-positions))))
     (maphash (lambda (id previews)
                (if-let ((node (gethash id org-node--id<>node)))
-                   (cl-loop
-                    for (relative-pos . _text) in previews
-                    unless (memq (+ (org-node-get-pos node) relative-pos)
-                                 (gethash id valid-positions))
-                    do (remhash id org-node-fakeroam--id<>previews))
+                   (cl-loop for (pos-diff . _text) in previews
+                            unless (memq (+ (org-node-get-pos node) pos-diff)
+                                         (gethash id valid-positions))
+                            do (remhash id org-node-fakeroam--id<>previews))
                  (remhash id org-node-fakeroam--id<>previews)))
              org-node-fakeroam--id<>previews)))
 
-(defvar org-node-fakeroam--temp-src-roam-node nil)
-(defun org-node-fakeroam--run-without-fontifying (orig-fn &rest args)
-  "Intended as around-advice for `org-roam-node-insert-section'.
+(defvar org-node-fakeroam--did-load-previews nil)
+(defun org-node-fakeroam--load-previews-from-disk ()
+  "Try to restore `org-node-fakeroam--id<>previews' from disk."
+  (unless org-node-fakeroam--did-load-previews
+    (setq org-node-fakeroam--did-load-previews t)
+    ;; Transition away from deprecated use of persist.el
+    (let ((old (org-node-changes--guess-persist-filename
+                'org-node-fakeroam--saved-previews)))
+      (when (file-exists-p old)
+        (ignore-errors
+          (rename-file old org-node-fakeroam-previews-file t))))
+    (let ((old (org-node-changes--guess-persist-filename
+                'org-node-fakeroam--saved-mtimes)))
+      (when (file-exists-p old)
+        (ignore-errors
+          (delete-file old))))
+    ;; Load from disk
+    (when (file-readable-p org-node-fakeroam-previews-file)
+      (with-temp-buffer
+        (insert-file-contents org-node-fakeroam-previews-file)
+        (when-let ((data (ignore-errors
+                           (car (read-from-string (buffer-string))))))
+          (when (hash-table-p data)
+            (setq org-node-fakeroam--id<>previews data)))))))
 
-Run ORIG-FN with ARGS, while overriding
-`org-roam-fontify-like-in-org-mode' so it does nothing.
-
-Before that, inspect ARGS for its SOURCE-NODE argument and store
-it in the variable `org-node-fakeroam--temp-src-roam-node', so
-that `org-node-fakeroam--accelerate-get-contents' can use this
-information."
-  (setq org-node-fakeroam--temp-src-roam-node (plist-get args :source-node))
-  (cl-letf (((symbol-function 'org-roam-fontify-like-in-org-mode) #'identity))
-    (apply orig-fn args)))
-
-(defun org-node-fakeroam--accelerate-get-contents (orig-fn file pt)
-  "Designed as around-advice for `org-roam-preview-get-contents'.
-
-Normally the first time you open an org-roam buffer, Emacs hangs
-for as long as a minute on a slow machine when huge files are
-involved.  This may eliminate most of that.
-
-Aside from huge files, it is also slow when there are backlinks
-coming from from extremely many files.  To deal with that, this
-caches all results so that it should only be slow the first time.
-
-Argument ORIG-FN is presumably `org-roam-preview-get-contents',
-which expects arguments FILE and PT, where PT is the buffer
-position of a link."
-  (unless org-node-fakeroam--temp-src-roam-node
-    (error "org-node-fakeroam: No SOURCE-NODE passed"))
-  (let* ((src-id (org-roam-node-id org-node-fakeroam--temp-src-roam-node))
-         (src-node (gethash src-id org-node--id<>node)))
-    (unless src-node
-      (error "org-node-fakeroam: Org-roam node not known to Org-node: %s"
-             src-id))
-    (let ((relative-pos (- pt (org-node-get-pos src-node))))
-      (or (alist-get relative-pos
-                     (gethash src-id org-node-fakeroam--id<>previews))
-          (setf
-           (alist-get relative-pos
-                      (gethash src-id org-node-fakeroam--id<>previews))
-           (let ((org-inhibit-startup t))
-             (delay-mode-hooks
-               ;; NOTE: We cannot use `org-roam-fontify-like-in-org-mode'
-               ;;       since it is temporarily overridden.
-               (org-fontify-like-in-org-mode (funcall orig-fn file pt)))))))))
+(defvar org-node-fakeroam--persistence-timer (timer-create)
+  "See `org-node-fakeroam-persist-previews'.")
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-fast-render-mode
@@ -253,8 +205,13 @@ from large files.
 -----"
   :global t
   :group 'org-node
+  (cancel-timer org-node-fakeroam--persistence-timer)
   (if org-node-fakeroam-fast-render-mode
       (progn
+        (org-node-fakeroam--load-previews-from-disk)
+        (setq org-node-fakeroam--persistence-timer
+              (run-with-idle-timer
+               60 t #'org-node-fakeroam--fast-render-persist-maybe))
         (advice-add #'org-roam-preview-get-contents :around
                     #'org-node-fakeroam--accelerate-get-contents)
         (advice-add #'org-roam-node-insert-section :around
@@ -264,14 +221,56 @@ from large files.
     (advice-remove #'org-roam-node-insert-section
                    #'org-node-fakeroam--run-without-fontifying)))
 
+(defvar org-node-fakeroam--src-roam-node nil)
+(defun org-node-fakeroam--run-without-fontifying (orig-fn &rest args)
+  "Intended as around-advice for `org-roam-node-insert-section'.
+
+Inspect ARGS for its SOURCE-NODE argument and store
+it in the variable `org-node-fakeroam--src-roam-node'.
+
+Then run ORIG-FN with ARGS, while overriding
+`org-roam-fontify-like-in-org-mode' so it does nothing."
+  (setq org-node-fakeroam--src-roam-node (plist-get args :source-node))
+  (cl-letf (((symbol-function 'org-roam-fontify-like-in-org-mode) #'identity))
+    (apply orig-fn args)))
+
+(defun org-node-fakeroam--accelerate-get-contents (orig-fn file pt)
+  "Designed as around-advice for `org-roam-preview-get-contents'.
+
+Normally the first time you open a Roam buffer, Emacs hangs
+for as long as a minute on a slow machine when huge files are
+involved.  This may eliminate most of that.
+
+Aside from huge files, it is also slow when there are backlinks
+coming from from extremely many files.  To deal with that, this
+caches all results so that it should only be slow the first time.
+
+Argument ORIG-FN is presumably `org-roam-preview-get-contents',
+which expects arguments FILE and PT, where PT is the buffer
+position of a link."
+  (unless org-node-fakeroam--src-roam-node
+    (error "org-node-fakeroam: No SOURCE-NODE passed"))
+  (let* ((src-id (org-roam-node-id org-node-fakeroam--src-roam-node))
+         (src-node (gethash src-id org-node--id<>node))
+         (pos-diff (if src-node
+                       (- pt (org-node-get-pos src-node))
+                     (error "Roam node unknown to Org-node: %s" src-id))))
+    (or (alist-get pos-diff (gethash src-id org-node-fakeroam--id<>previews))
+        (setf
+         (alist-get pos-diff (gethash src-id org-node-fakeroam--id<>previews))
+         (let ((org-inhibit-startup t))
+           (delay-mode-hooks
+             ;; NOTE: We cannot use `org-roam-fontify-like-in-org-mode'
+             ;;       since it is temporarily overridden.
+             (org-fontify-like-in-org-mode (funcall orig-fn file pt))))))))
+
 ;; Just a bonus command
-(defun org-node-fakeroam-show-roam-buffer ()
-  "Display an org-roam buffer or refresh an already visible one.
+(defun org-node-fakeroam-show-buffer ()
+  "Display an org-roam buffer xor refresh an already visible one.
 
 To reiterate: if it was not visible, only bring it up for
 display, do NOT also refresh it.  Leave that for the second time
-the user invokes the command.  Or let the mode
-`org-node-fakeroam-redisplay-mode' refresh it."
+the user invokes the command."
   (interactive)
   (if (derived-mode-p 'org-roam-mode)
       (org-roam-buffer-refresh)
@@ -307,12 +306,10 @@ not need it for other things.
       (progn
         (unless org-node-cache-mode
           (message "`org-node-fakeroam-jit-backlinks-mode' will do poorly without `org-node-cache-mode'"))
-        (advice-add 'org-roam-backlinks-get :override
-                    #'org-node-fakeroam--mk-backlinks)
-        (advice-add 'org-roam-reflinks-get :override
-                    #'org-node-fakeroam--mk-reflinks))
+        (advice-add 'org-roam-backlinks-get :override #'org-node-fakeroam--mk-backlinks)
+        (advice-add 'org-roam-reflinks-get :override #'org-node-fakeroam--mk-reflinks))
     (advice-remove 'org-roam-backlinks-get #'org-node-fakeroam--mk-backlinks)
-    (advice-remove 'org-roam-reflinks-get #'org-node-fakeroam--mk-reflinks)))
+    (advice-remove 'org-roam-reflinks-get  #'org-node-fakeroam--mk-reflinks)))
 
 (defun org-node-fakeroam--mk-node (node)
   "Make an org-roam-node object from org-node object NODE."
@@ -330,7 +327,7 @@ not need it for other things.
                 (encode-time (org-parse-time-string deadline))))
    :level (org-node-get-level node)
    :title (org-node-get-title node)
-   :file-title (org-node-get-file-title node)
+   :file-title (org-node-get-file-title-or-basename node)
    :tags (org-node-get-tags-with-inheritance node)
    :aliases (org-node-get-aliases node)
    :todo (org-node-get-todo node)
@@ -384,7 +381,7 @@ Designed to override `org-roam-reflinks-get'."
 ;;;; Backlinks: Feed-the-db shim
 
 (defvar org-node-fakeroam--orig-db-loc nil)
-(defvar org-node-fakeroam--overwrite-timer (timer-create))
+(defvar org-node-fakeroam--overwrite-db-timer (timer-create))
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-db-feed-mode
@@ -398,11 +395,12 @@ active, and intermittently merge the temporary file with the original.
   :global t
   :group 'org-node
   (org-roam-db--close-all)
-  (cancel-timer org-node-fakeroam--overwrite-timer)
+  (cancel-timer org-node-fakeroam--overwrite-db-timer)
 
   (if org-node-fakeroam-db-feed-mode
       (progn
-        (when org-roam-db-update-on-save
+        (when (and org-roam-db-update-on-save
+                   org-roam-db-autosync-mode)
           (message "org-node-fakeroam: You probably want to set `org-roam-db-update-on-save' to nil"))
         (unless org-node-cache-mode
           (message "`org-node-fakeroam-db-feed-mode' will do nothing without `org-node-cache-mode'"))
@@ -413,51 +411,41 @@ active, and intermittently merge the temporary file with the original.
         (setq org-roam-db-location (org-node-fakeroam--mk-uniq-db-loc))
         (when (file-readable-p org-node-fakeroam--orig-db-loc)
           (copy-file org-node-fakeroam--orig-db-loc org-roam-db-location))
-        (setq org-node-fakeroam--overwrite-timer
+        (setq org-node-fakeroam--overwrite-db-timer
               (run-with-idle-timer 60 t #'org-node-fakeroam--overwrite-db))
-        (advice-add 'org-roam-node-insert-section :filter-args
-                    #'org-node-fakeroam--make-link-props)
-        (add-hook 'org-node-rescan-functions
-                  #'org-node-fakeroam--db-update-files)
-        (add-hook 'kill-emacs-hook
-                  #'org-node-fakeroam--delete-db)
-        (add-hook 'kill-emacs-hook
-                  #'org-roam-db--close-all))
+        (advice-add 'org-roam-node-insert-section :filter-args #'org-node-fakeroam--mk-link-props)
+        (add-hook 'org-node-rescan-functions #'org-node-fakeroam--update-db)
+        (add-hook 'kill-emacs-hook           #'org-node-fakeroam--delete-db)
+        (add-hook 'kill-emacs-hook           #'org-roam-db--close-all))
 
     (when org-node-fakeroam--orig-db-loc
       (delete-file org-roam-db-location)
       (setq org-roam-db-location org-node-fakeroam--orig-db-loc)
       (setq org-node-fakeroam--orig-db-loc nil))
-    (advice-remove 'org-roam-node-insert-section
-                   #'org-node-fakeroam--make-link-props)
-    (remove-hook 'org-node-rescan-functions
-                 #'org-node-fakeroam--db-update-files)
-    (remove-hook 'kill-emacs-hook
-                 #'org-node-fakeroam--delete-db)
+    (advice-remove 'org-roam-node-insert-section #'org-node-fakeroam--mk-link-props)
+    (remove-hook 'org-node-rescan-functions      #'org-node-fakeroam--update-db)
+    (remove-hook 'kill-emacs-hook                #'org-node-fakeroam--delete-db)
     (unless org-roam-db-autosync-mode
-      (remove-hook 'kill-emacs-hook
-                   #'org-roam-db--close-all))))
+      (remove-hook 'kill-emacs-hook #'org-roam-db--close-all))))
 
-(defun org-node-fakeroam--make-link-props (args)
+(defun org-node-fakeroam--mk-link-props (args)
   "A :filter-args advice for `org-roam-node-insert-section'.
-Correct the plist ARGS so that the third key, :properties, has a
+
+Modify the ARGS plist so that the third key, :properties, has a
 value that looks like \(:outline OUTLINE-PATH-TO-THE-NODE).
 
-This info is trivial to reconstruct from the first key,
-:source-node, hence org-node not including it with the link
-objects sent to the DB by `org-node-fakeroam-db-feed-mode',
-where such preconstruction would cost much more compute."
-  (unless org-node-fakeroam-jit-backlinks-mode ;; Not needed if that is on
+This info is trivial to reconstruct from the first key, :source-node,
+hence `org-node-fakeroam-db-feed-mode' not including it with the link
+metadata sent to the DB.  Such pre-construction would cost much more
+compute, as it has to be done for every link inside the buffer being
+saved."
+  (unless org-node-fakeroam-jit-backlinks-mode ;; Not needed if that is enabled
     (let ((roam-node (plist-get args :source-node)))
       (setf (plist-get args :properties)
             (list :outline
                   (append (org-roam-node-olp roam-node)
                           (list (org-roam-node-title roam-node)))))))
   args)
-
-(defun org-node-fakeroam--delete-db ()
-  "Delete `org-roam-db-location'."
-  (delete-file org-roam-db-location))
 
 ;; REASONABLE USER STORY:
 
@@ -480,6 +468,10 @@ where such preconstruction would cost much more compute."
 
 ;; 2. Every time we're about to write to the DB, check if the other emacsen's
 ;;    DB copies are newer, and copy the newest one to overwrite our local copy.
+
+(defun org-node-fakeroam--delete-db ()
+  "Delete `org-roam-db-location'."
+  (delete-file org-roam-db-location))
 
 (defun org-node-fakeroam--overwrite-db ()
   "Update the org-roam SQLite DB on disk.
@@ -513,12 +505,16 @@ This function lets the newest copy overwrite the current
 instance\\='s copy."
   (let ((locs (cl-loop for file in (directory-files (org-node-parser--tmpfile)
                                                     t "org-roam" t)
-                       when (string-suffix-p "db" file)
+                       when (string-suffix-p ".db" file)
                        collect file)))
-    (sort locs #'file-newer-than-file-p)
-    (unless (equal (car locs) org-roam-db-location)
-      (org-roam-db--close-all)
-      (copy-file (car locs) org-roam-db-location t))))
+    ;; REVIEW: Maybe include the original DB?
+    ;; (and org-node-fakeroam--orig-db-loc
+    ;;      (file-readable-p org-node-fakeroam--orig-db-loc)
+    ;;      (push org-node-fakeroam--orig-db-loc locs))
+    (let ((newest (car (sort locs #'file-newer-than-file-p))))
+      (unless (equal newest org-roam-db-location)
+        (org-roam-db--close-all)
+        (copy-file newest org-roam-db-location t)))))
 
 ;; TODO: Was hoping to just run this on every save.  Is SQLite really so slow
 ;;       to accept 0-5 MB of data?  Must be some way to make it instant.
@@ -556,7 +552,7 @@ instance\\='s copy."
 ;;        Profiler says most of it is in EmacSQL, maybe some SQL PRAGMA
 ;;        settings would fix?  Or gather all data for one single `emacsql' call?
 ;;        Or give up and do it async.
-(defun org-node-fakeroam--db-update-files (files)
+(defun org-node-fakeroam--update-db (files)
   "Update the Roam DB about nodes and links involving FILES."
   (org-node-fakeroam--check-simultaneous-dbs)
   (emacsql-with-transaction (org-roam-db)
@@ -565,10 +561,9 @@ instance\\='s copy."
                          file))
     (let (already)
       (cl-loop
-       for node being the hash-values of org-nodes
+       for node being each hash-value of org-node--id<>node
        as file = (org-node-get-file-path node)
-       when (member file files)
-       do
+       when (member file files) do
        (unless (member file already)
          (push file already)
          (org-node-fakeroam--db-add-file-level-data node))
@@ -786,22 +781,40 @@ GOTO and KEYS are like in `org-roam-dailies--capture'."
 
 ;;;; Obsolete
 
-(org-node-changes--def-whiny-alias
- 'org-node-fakeroam-setup-persist 'org-node-fakeroam-setup-persistence
- "2024-09-30" nil "2024 October 30")
+(org-node-changes--def-whiny-alias 'org-node-new-via-roam-capture
+                                   'org-node-fakeroam-new-via-roam-capture
+                                   "2024-09-17" nil "2024 November 30")
 
-(org-node-changes--def-whiny-alias
- 'org-node-fakeroam-enable-persist 'org-node-fakeroam-setup-persistence
- "2024-09-20" nil "2024 October 30")
+(org-node-changes--def-whiny-alias 'org-node-slugify-like-roam-actual
+                                   'org-node-fakeroam-slugify-via-roam
+                                   "2024-09-17" nil "2024 November 30")
 
-(org-node-changes--def-whiny-alias
- 'org-node-new-via-roam-capture #'org-node-fakeroam-new-via-roam-capture
- "2024-09-17" nil "2024 November 30")
+(org-node-changes--def-whiny-alias 'org-node-fakeroam--db-update-files
+                                   'org-node-fakeroam--update-db)
 
-(org-node-changes--def-whiny-alias
- 'org-node-slugify-like-roam-actual #'org-node-fakeroam-slugify-via-roam
- "2024-09-17" nil "2024 November 30")
+(org-node-changes--def-whiny-alias 'org-node-fakeroam-fast-render-clean-cache
+                                   'org-node-fakeroam--clean-stale-previews
+                                   nil t)
 
+(define-obsolete-function-alias
+  'org-node-fakeroam-show-roam-buffer
+  'org-node-fakeroam-show-buffer
+  "2024-10-19")
+
+(defun org-node-fakeroam-nuke-persistence ()
+  "Unpersist and delete from disk."
+  (declare (obsolete nil "2024-10-19"))
+  (cancel-timer org-node-fakeroam--persistence-timer)
+  (delete-file org-node-fakeroam-previews-file))
+
+(defun org-node-fakeroam-setup-persistence ()
+  "Set `org-node-fakeroam-persist-previews' to t.
+
+Will be removed eventually.  Configure that variable instead."
+  (declare (obsolete nil "2024-10-19"))
+  (setq org-node-fakeroam-persist-previews t))
+(defalias 'org-node-fakeroam-setup-persist #'org-node-fakeroam-setup-persistence)
+(defalias 'org-node-fakeroam-enable-persist #'org-node-fakeroam-setup-persistence)
 
 (provide 'org-node-fakeroam)
 
