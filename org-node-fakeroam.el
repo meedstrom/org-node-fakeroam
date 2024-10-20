@@ -128,21 +128,27 @@ org-node itself does the same under /tmp (or variable
 (defvar org-node-fakeroam--last-hash -1)
 (defun org-node-fakeroam--fast-render-persist-maybe ()
   "Maybe sync cached previews to disk."
-  (when org-node-fakeroam-persist-previews
-    (let ((hash (sxhash org-node-fakeroam--id<>previews)))
-      ;; Only proceed if the table has changed
-      (when (/= org-node-fakeroam--last-hash hash)
-        (setq org-node-fakeroam--last-hash hash)
-        (org-node-fakeroam--clean-stale-previews)
-        (let ((buf (find-buffer-visiting org-node-fakeroam-previews-file)))
-          (when buf (kill-buffer buf)))
-        (write-region (prin1-to-string org-node-fakeroam--id<>previews
-                                       nil
-                                       '((length . nil) (level . nil)))
-                      nil
-                      org-node-fakeroam-previews-file
-                      nil
-                      'quiet)))))
+  (if org-node-fakeroam-persist-previews
+      (let ((hash (sxhash org-node-fakeroam--id<>previews)))
+        ;; Only proceed if the table has changed
+        (when (/= org-node-fakeroam--last-hash hash)
+          (setq org-node-fakeroam--last-hash hash)
+          (org-node-fakeroam--clean-stale-previews)
+          (let ((buf (find-buffer-visiting org-node-fakeroam-previews-file)))
+            (when buf (kill-buffer buf)))
+          (write-region (prin1-to-string org-node-fakeroam--id<>previews
+                                         nil
+                                         '((length . nil) (level . nil)))
+                        nil
+                        org-node-fakeroam-previews-file
+                        nil
+                        'quiet)))
+    ;; Not updated for 30 days?  Delete so it is not loaded in the future.
+    (when (and org-node-fakeroam--did-load-previews
+               (> (float-time (time-since org-node-fakeroam--did-load-previews))
+                  (* 86400 30)))
+      (delete-file org-node-fakeroam--did-load-previews)
+      (setq org-node-fakeroam--did-load-previews nil))))
 
 (defun org-node-fakeroam--clean-stale-previews ()
   "Clean stale members of `org-node-fakeroam--id<>previews'."
@@ -164,26 +170,16 @@ org-node itself does the same under /tmp (or variable
 (defun org-node-fakeroam--load-previews-from-disk ()
   "Try to restore `org-node-fakeroam--id<>previews' from disk."
   (unless org-node-fakeroam--did-load-previews
-    (setq org-node-fakeroam--did-load-previews t)
-    ;; Transition away from deprecated use of persist.el
-    (let ((old (org-node-changes--guess-persist-filename
-                'org-node-fakeroam--saved-previews)))
-      (when (file-exists-p old)
-        (ignore-errors
-          (rename-file old org-node-fakeroam-previews-file t))))
-    (let ((old (org-node-changes--guess-persist-filename
-                'org-node-fakeroam--saved-mtimes)))
-      (when (file-exists-p old)
-        (ignore-errors
-          (delete-file old))))
-    ;; Load from disk
     (when (file-readable-p org-node-fakeroam-previews-file)
       (with-temp-buffer
         (insert-file-contents org-node-fakeroam-previews-file)
         (when-let ((data (ignore-errors
                            (car (read-from-string (buffer-string))))))
           (when (hash-table-p data)
-            (setq org-node-fakeroam--id<>previews data)))))))
+            (setq org-node-fakeroam--id<>previews data)
+            (setq org-node-fakeroam--did-load-previews
+                  (file-attribute-modification-time
+                   (file-attributes org-node-fakeroam-previews-file)))))))))
 
 (defvar org-node-fakeroam--persistence-timer (timer-create)
   "See `org-node-fakeroam-persist-previews'.")
