@@ -57,7 +57,7 @@ You might think that this only helps performance for someone who often restarts 
 
 If big files are slow to save, this section is for you.  We will turn off some org-roam stuff and instruct it to look up org-node tables.
 
-PROVISO: if you use the [[https://github.com/jkitchin/org-ref][org-ref]] package, stop and reconsider!  The org-node tables only collect org-ref v3 citations that were within bracketed links that start with "cite", such as =[[citealt:&demski2019]]=, but NOT =[[fnotecite:&ioannidis2005]]= since it does not start with "cite", NOR =citealt:&fallenstein2015= since it is not wrapped in brackets.
+PROVISO: if you use the [[https://github.com/jkitchin/org-ref][org-ref]] package, stop and reconsider!  As mentioned on the main README, the org-node tables only collect org-ref v3 citations that were within bracketed links that start with "cite", such as =[[citealt:&demski2019]]=, but NOT =[[fnotecite:&ioannidis2005]]= since it does not start with "cite", NOR =citealt:&fallenstein2015= since it is not wrapped in brackets.
 
 ------
 
@@ -99,13 +99,13 @@ Fair warning: a couple of data points will differ.
 - (As mentioned earlier) Not all org-ref citations are picked up
 - Files' recorded content-hash will be the blank string ""
 - Files' recorded atime will be copied from the mtime
-- Each node will record all fields in its =PROPERTIES= drawer as it exists on disk, but not implicit fields like =CATEGORY= or =TIMESTAMP_IA=
+- Each node will record its =PROPERTIES= drawer as it exists on disk, but not implicit properties like =CATEGORY= or =TIMESTAMP_IA=
 
 This is a place where I request contributions, since 6 seconds still seems a lot slower than it needs to be.  I envisioned running this function on every save -- that's obviously not possible yet.  The bottleneck seems to be in how EmacSQL is being called.
 
 *** Tip: On very slow filesystems
 
-I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam ([[https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819][11 seconds just to goto next daily]]!).  A Redditor also said Apple NFS is not ideal for Emacs.
+I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam ([[https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819][11 seconds]] just to goto next daily!).  A Redditor also said Apple NFS is not ideal for Emacs.  Microsoft NTFS seems to have a reputation as well.
 
 Good news.  You can override some functions to make them look up org-node tables and avoid the filesystem:
 

@@ -57,12 +57,13 @@ time some necessary variables are set."
 (defun org-node-fakeroam-slugify-via-roam (title)
   "From TITLE, make a filename slug, using Roam code to do it.
 
-See also `org-node-slugify-like-roam-default', which is effectively the
-same, but insensitive to any customization of Roam."
+See also the equivalent `org-node-slugify-like-roam-default'.  This
+function only exists in case you had patched the definition of
+`org-roam-node-slug' and want to continue using your custom definition."
   (org-roam-node-slug (org-roam-node-create :title title)))
 
 
-;;;; Roam buffer hax
+;;;; Roam buffer hacks
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-redisplay-mode
@@ -100,6 +101,8 @@ the heading that has ID, and TEXT is an output of
 `org-roam-preview-get-contents'.")
 
 (defcustom org-node-fakeroam-previews-file
+  ;; TODO: Should probably just do a PR to
+  ;;       https://github.com/emacscollective/no-littering
   (file-name-concat (or (bound-and-true-p no-littering-var-directory)
                         user-emacs-directory)
                     "org-node-fakeroam-cached-previews.eld")
@@ -243,8 +246,9 @@ position of a link."
 2. Cache the previews, so that there is less or no lag the next
    time the same nodes are visited.
 
-See also `org-node-fakeroam-setup-persistence' to persist these caches
-across restarts if you have a slow filesystem.
+See also `org-node-fakeroam-persist-previews' if you have a particularly
+slow filesystem or CPU, or often see dozens of backlinks originating
+from large files.
 
 -----"
   :global t
@@ -285,8 +289,8 @@ the user invokes the command.  Or let the mode
 
 
 ;;;; Backlinks: JIT shim
-;; Fabricate knockoff Roam backlinks in real time, so that a DB is not needed
-;; at all for displaying the Roam buffer
+;; Fabricate knockoff Roam backlinks in real time, so that no DB is needed
+;; for displaying the Roam buffer
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-jit-backlinks-mode
@@ -388,7 +392,7 @@ Designed to override `org-roam-reflinks-get'."
 
 Actually, reassign `org-roam-db-location' to an unique temporary
 file name and write to that one for as long as the mode is
-active.
+active, and intermittently merge the temporary file with the original.
 
 -----"
   :global t
@@ -459,8 +463,8 @@ where such preconstruction would cost much more compute."
 
 ;; - User uses db-feed-mode
 ;; - User edits notes in multiple Emacs instances
-;; - User powercycles the computer, cheating `kill-emacs-hook'
-;; - User starts fresh-preview Emacs
+;; - User powercycles the computer, skipping `kill-emacs-hook'
+;; - User starts fresh Emacs
 ;; - User expects an up-to-date DB
 
 ;; OUR ADDITIONAL REQUIREMENT:
@@ -481,7 +485,9 @@ where such preconstruction would cost much more compute."
   "Update the org-roam SQLite DB on disk.
 During usage, `org-node-fakeroam-db-feed-mode' actually uses a
 temporary file to minimize the performance hit when multiple
-instances of Emacs have a connection open."
+instances of Emacs have a connection open.
+
+This function lets the temporary copy overwrite the original."
   (when (and (file-readable-p org-roam-db-location)
              (file-writable-p org-node-fakeroam--orig-db-loc)
              (file-newer-than-file-p org-roam-db-location
@@ -503,8 +509,8 @@ Multiple Emacs instances that enable
 in a temporary directory, to avoid the performance hit of one DB
 being handled by several open EmacSQL connections.
 
-This function syncs the current instance\\='s copy with the
-newest copy."
+This function lets the newest copy overwrite the current
+instance\\='s copy."
   (let ((locs (cl-loop for file in (directory-files (org-node-parser--tmpfile)
                                                     t "org-roam" t)
                        when (string-suffix-p "db" file)
@@ -575,7 +581,7 @@ newest copy."
        (org-node-fakeroam--db-add-node node)))))
 
 (defun org-node-fakeroam--db-add-file-level-data (node)
-  "Send metadata about the file where NODE is."
+  "Send metadata about the file where NODE is located."
   (let* ((file (org-node-get-file-path node))
          (lisp-mtime (seconds-to-time
                       (car (gethash file org-node--file<>mtime.elapsed)))))
@@ -590,14 +596,14 @@ newest copy."
 (defun org-node-fakeroam--db-add-node (node)
   "Send to the SQLite database all we know about NODE.
 This includes all links and citations that touch NODE."
-  (cl-symbol-macrolet ;; PERF: 20% less time than `let'
+  (cl-symbol-macrolet ;; PERF: 20% faster rebuild than with `let'
       ((id         (org-node-get-id node))
        (file-path  (org-node-get-file-path node))
        (tags       (org-node-get-tags-with-inheritance node))
        (aliases    (org-node-get-aliases node))
        (roam-refs  (org-node-get-refs node))
        (title      (org-node-get-title node))
-       (properties (org-node-get-properties node)) ;; NOTE: no inherits!
+       (properties (org-node-get-properties node)) ;; NOTE: no implicit props!
        (level      (org-node-get-level node))
        (todo       (org-node-get-todo node))
        (scheduled  (org-node-get-scheduled node))
@@ -686,7 +692,9 @@ that used it \(plus a practical performance penalty since
 Even more verbosity is added on top for org-node, which does a
 lot of path comparisons and needs to process the path with
 `abbreviate-file-name'.  This variable provides an easy
-shorthand.")
+shorthand.
+
+Will stay nil until sometime after org-roam-dailies is loaded.")
 
 (defun org-node-fakeroam--remember-roam-dirs ()
   "Cache some convenience variables.
@@ -704,6 +712,9 @@ See docstring of `org-node-fakeroam-daily-dir'."
                 (file-name-concat org-roam-directory
                                   org-roam-dailies-directory))))))))
 
+;; This hook would not be needed if we just `require' org-roam-dailies at the
+;; top of this file, but I don't want to force that since that module makes
+;; unhygienic changes to Emacs on load.
 (org-node-fakeroam--remember-roam-dirs)
 (add-hook 'org-node-before-update-tables-hook
           #'org-node-fakeroam--remember-roam-dirs)
