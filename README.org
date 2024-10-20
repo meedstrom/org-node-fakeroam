@@ -45,13 +45,15 @@ Enable this mode:
 (org-node-fakeroam-fast-render-mode) ;; build the Roam buffer faster
 #+end_src
 
-Optionally, you can speed it up further by persisting on disk all the preview snippets.  The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
-
-You might think that this only helps performance for someone who often restarts Emacs, but the nature of notes is such that you can go months between revisits of a given note, and it's /so nice/ for the buffer to still be instant instead of only near-instant.  YMMV; maybe your device is beefy enough anyway.
+Optionally, you can further improve the experience by persisting on disk all the preview snippets, instead of only in the current Emacs session.
 
 #+begin_src elisp
-(org-node-fakeroam-setup-persistence) ;; cache previews on disk
+(setq org-node-fakeroam-persist-previews t)
 #+end_src
+
+The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
+
+You might think that this only matters to someone who often restarts Emacs, but the nature of notes is such that you can go months between revisits of a given note, and it's /so nice/ for the buffer to still be instant instead of only near-instant.  YMMV; maybe your device is beefy enough anyway.
 
 ** Speeding up the org-roam DB
 
