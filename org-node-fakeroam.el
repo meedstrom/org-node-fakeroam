@@ -125,7 +125,7 @@ org-node itself does the same under /tmp (or variable
   :group 'org-node
   :type 'boolean)
 
-(defvar org-node-fakeroam--last-hash -1)
+(defvar org-node-fakeroam--last-hash (sxhash org-node-fakeroam--id<>previews))
 (defun org-node-fakeroam--fast-render-persist-maybe ()
   "Maybe sync cached previews to disk."
   (if org-node-fakeroam-persist-previews
@@ -143,12 +143,12 @@ org-node itself does the same under /tmp (or variable
                         org-node-fakeroam-previews-file
                         nil
                         'quiet)))
-    ;; Not updated for 30 days?  Delete so it is not loaded in the future.
-    (when (and org-node-fakeroam--did-load-previews
-               (> (float-time (time-since org-node-fakeroam--did-load-previews))
+    ;; Not written-to for 30 days?  Delete so it is not loaded in the future.
+    (when (and org-node-fakeroam--mtime-at-load
+               (> (float-time (time-since org-node-fakeroam--mtime-at-load))
                   (* 86400 30)))
-      (delete-file org-node-fakeroam--did-load-previews)
-      (setq org-node-fakeroam--did-load-previews nil))))
+      (delete-file org-node-fakeroam--mtime-at-load)
+      (setq org-node-fakeroam--mtime-at-load nil))))
 
 (defun org-node-fakeroam--clean-stale-previews ()
   "Clean stale members of `org-node-fakeroam--id<>previews'."
@@ -166,10 +166,10 @@ org-node itself does the same under /tmp (or variable
                  (remhash id org-node-fakeroam--id<>previews)))
              org-node-fakeroam--id<>previews)))
 
-(defvar org-node-fakeroam--did-load-previews nil)
+(defvar org-node-fakeroam--mtime-at-load nil)
 (defun org-node-fakeroam--load-previews-from-disk ()
   "Try to restore `org-node-fakeroam--id<>previews' from disk."
-  (unless org-node-fakeroam--did-load-previews
+  (unless org-node-fakeroam--mtime-at-load
     (when (file-readable-p org-node-fakeroam-previews-file)
       (with-temp-buffer
         (insert-file-contents org-node-fakeroam-previews-file)
@@ -177,7 +177,7 @@ org-node itself does the same under /tmp (or variable
                            (car (read-from-string (buffer-string))))))
           (when (hash-table-p data)
             (setq org-node-fakeroam--id<>previews data)
-            (setq org-node-fakeroam--did-load-previews
+            (setq org-node-fakeroam--mtime-at-load
                   (file-attribute-modification-time
                    (file-attributes org-node-fakeroam-previews-file)))))))))
 
