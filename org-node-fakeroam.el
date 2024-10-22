@@ -108,8 +108,9 @@ the heading that has said ID, and TEXT is an output of
                     "org-node-fakeroam-cached-previews.eld")
   "File containing cached backlink previews.
 Stores the value of table `org-node-fakeroam--id<>previews' between
-sessions.  Only has an effect if `org-node-fakeroam-persist-previews'
-is non-nil."
+sessions.
+
+Only meaningful if `org-node-fakeroam-persist-previews' is non-nil."
   :group 'org-node
   :type 'file)
 
@@ -126,32 +127,30 @@ org-node itself does the same under /tmp (or variable
   :type 'boolean)
 
 (defvar org-node-fakeroam--last-hash (sxhash org-node-fakeroam--id<>previews))
-(defun org-node-fakeroam--fast-render-persist-maybe ()
-  "Maybe sync cached previews to disk."
+(defun org-node-fakeroam--fast-render-persist ()
+  "Sync cached previews to disk."
   (if org-node-fakeroam-persist-previews
-      (let ((hash (sxhash org-node-fakeroam--id<>previews)))
-        ;; Only proceed if the table has changed
-        (when (/= org-node-fakeroam--last-hash hash)
-          (setq org-node-fakeroam--last-hash hash)
-          (org-node-fakeroam--clean-stale-previews)
-          (let ((buf (find-buffer-visiting org-node-fakeroam-previews-file)))
-            (when buf (kill-buffer buf)))
+      ;; Only proceed if table has grown
+      (when (/= org-node-fakeroam--last-hash
+                (sxhash org-node-fakeroam--id<>previews))
+        (org-node-fakeroam--clean-stale-previews)
+        (setq org-node-fakeroam--last-hash
+              (sxhash org-node-fakeroam--id<>previews))
+        (let ((buf (find-buffer-visiting org-node-fakeroam-previews-file)))
+          (when buf (kill-buffer buf))
           (write-region (prin1-to-string org-node-fakeroam--id<>previews
                                          nil
                                          '((length . nil) (level . nil)))
                         nil
                         org-node-fakeroam-previews-file
                         nil
-                        'quiet)))
-    ;; Not written-to for 30 days?  Delete so it is not loaded in the future.
-    (when (and org-node-fakeroam--mtime-at-load
-               (> (float-time (time-since org-node-fakeroam--mtime-at-load))
-                  (* 86400 30)))
-      (delete-file org-node-fakeroam--mtime-at-load)
-      (setq org-node-fakeroam--mtime-at-load nil))))
+                        'quiet)
+          (when buf (find-file-noselect org-node-fakeroam-previews-file))))
+    (cancel-timer org-node-fakeroam--persistence-timer)
+    (setq org-node-fakeroam--did-setup-persistence nil)))
 
 (defun org-node-fakeroam--clean-stale-previews ()
-  "Clean stale members of `org-node-fakeroam--id<>previews'."
+  "Clean stale members of table `org-node-fakeroam--id<>previews'."
   (let ((valid-positions (make-hash-table :test #'equal)))
     (cl-loop for links being each hash-value of org-node--dest<>links do
              (dolist (link links)
@@ -166,23 +165,25 @@ org-node itself does the same under /tmp (or variable
                  (remhash id org-node-fakeroam--id<>previews)))
              org-node-fakeroam--id<>previews)))
 
-(defvar org-node-fakeroam--mtime-at-load nil)
-(defun org-node-fakeroam--load-previews-from-disk ()
-  "Try to restore `org-node-fakeroam--id<>previews' from disk."
-  (unless org-node-fakeroam--mtime-at-load
+(defvar org-node-fakeroam--persistence-timer (timer-create))
+(defvar org-node-fakeroam--did-setup-persistence nil)
+(defun org-node-fakeroam--try-setup-persistence (&rest _)
+  "Try to restore `org-node-fakeroam--id<>previews' from disk.
+Then start intermittently syncing to disk."
+  (when (and org-node-fakeroam-persist-previews
+             (not org-node-fakeroam--did-setup-persistence))
+    (setq org-node-fakeroam--did-setup-persistence t)
+    (cancel-timer org-node-fakeroam--persistence-timer)
+    (setq org-node-fakeroam--persistence-timer
+          (run-with-idle-timer 60 t #'org-node-fakeroam--fast-render-persist))
     (when (file-readable-p org-node-fakeroam-previews-file)
+      ;; Load from disk
       (with-temp-buffer
         (insert-file-contents org-node-fakeroam-previews-file)
         (when-let ((data (ignore-errors
                            (car (read-from-string (buffer-string))))))
           (when (hash-table-p data)
-            (setq org-node-fakeroam--id<>previews data)
-            (setq org-node-fakeroam--mtime-at-load
-                  (file-attribute-modification-time
-                   (file-attributes org-node-fakeroam-previews-file)))))))))
-
-(defvar org-node-fakeroam--persistence-timer (timer-create)
-  "See `org-node-fakeroam-persist-previews'.")
+            (setq org-node-fakeroam--id<>previews data)))))))
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-fast-render-mode
@@ -201,21 +202,21 @@ from large files.
 -----"
   :global t
   :group 'org-node
-  (cancel-timer org-node-fakeroam--persistence-timer)
   (if org-node-fakeroam-fast-render-mode
       (progn
-        (org-node-fakeroam--load-previews-from-disk)
-        (setq org-node-fakeroam--persistence-timer
-              (run-with-idle-timer
-               60 t #'org-node-fakeroam--fast-render-persist-maybe))
-        (advice-add #'org-roam-preview-get-contents :around
-                    #'org-node-fakeroam--accelerate-get-contents)
+        (advice-add #'org-roam-buffer-render-contents :before
+                    #'org-node-fakeroam--try-setup-persistence)
         (advice-add #'org-roam-node-insert-section :around
-                    #'org-node-fakeroam--run-without-fontifying))
-    (advice-remove #'org-roam-preview-get-contents
-                   #'org-node-fakeroam--accelerate-get-contents)
+                    #'org-node-fakeroam--run-without-fontifying)
+        (advice-add #'org-roam-preview-get-contents :around
+                    #'org-node-fakeroam--accelerate-get-contents))
+    (cancel-timer org-node-fakeroam--persistence-timer)
+    (advice-remove #'org-roam-buffer-render-contents
+                   #'org-node-fakeroam--try-setup-persistence)
     (advice-remove #'org-roam-node-insert-section
-                   #'org-node-fakeroam--run-without-fontifying)))
+                   #'org-node-fakeroam--run-without-fontifying)
+    (advice-remove #'org-roam-preview-get-contents
+                   #'org-node-fakeroam--accelerate-get-contents)))
 
 (defvar org-node-fakeroam--src-roam-node nil)
 (defun org-node-fakeroam--run-without-fontifying (orig-fn &rest args)
