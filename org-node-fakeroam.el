@@ -92,7 +92,7 @@ See also `org-node-fakeroam-fast-render-mode'.
           (remove-hook 'post-command-hook #'org-roam-buffer--redisplay-h t))))))
 
 (defvar org-node-fakeroam--id<>previews (make-hash-table :test #'equal)
-  "1:N table mapping IDs to previews of backlink contexts.
+  "1:N table mapping IDs to seen previews of backlink contexts.
 For use by `org-node-fakeroam-fast-render-mode'.
 
 Each preview is a cons cell \(POS-DIFF . TEXT) where POS-DIFF
@@ -306,7 +306,7 @@ not need it for other things.
         (unless org-node-cache-mode
           (message "`org-node-fakeroam-jit-backlinks-mode' will do poorly without `org-node-cache-mode'"))
         (advice-add 'org-roam-backlinks-get :override #'org-node-fakeroam--mk-backlinks)
-        (advice-add 'org-roam-reflinks-get :override #'org-node-fakeroam--mk-reflinks))
+        (advice-add 'org-roam-reflinks-get  :override #'org-node-fakeroam--mk-reflinks))
     (advice-remove 'org-roam-backlinks-get #'org-node-fakeroam--mk-backlinks)
     (advice-remove 'org-roam-reflinks-get  #'org-node-fakeroam--mk-reflinks)))
 
@@ -381,6 +381,9 @@ Designed to override `org-roam-reflinks-get'."
 
 (defvar org-node-fakeroam--orig-db-loc nil)
 (defvar org-node-fakeroam--overwrite-db-timer (timer-create))
+
+;; FIXME: Leaves a bit too many /tmp/.../org-roam.X.db files when restarting
+;;        often
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-db-feed-mode
@@ -799,12 +802,6 @@ GOTO and KEYS are like in `org-roam-dailies--capture'."
   'org-node-fakeroam-show-roam-buffer
   'org-node-fakeroam-show-buffer
   "2024-10-19")
-
-(defun org-node-fakeroam-nuke-persistence ()
-  "Unpersist and delete from disk."
-  (declare (obsolete nil "2024-10-19"))
-  (cancel-timer org-node-fakeroam--persistence-timer)
-  (delete-file org-node-fakeroam-previews-file))
 
 (defun org-node-fakeroam-setup-persistence ()
   "Set `org-node-fakeroam-persist-previews' to t.

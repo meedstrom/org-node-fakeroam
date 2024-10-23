@@ -59,7 +59,7 @@ You might think that this only matters to someone who often restarts Emacs, but 
 
 If big files are slow to save, this section is for you.  We will turn off some org-roam stuff and instruct it to look up org-node tables.
 
-PROVISO: if you use the [[https://github.com/jkitchin/org-ref][org-ref]] package, stop and reconsider!  As mentioned on the main README, the org-node tables only collect org-ref v3 citations that were within bracketed links that start with "cite", such as =[[citealt:&demski2019]]=, but NOT =[[fnotecite:&ioannidis2005]]= since it does not start with "cite", NOR =citealt:&fallenstein2015= since it is not wrapped in brackets.
+PROVISO: if you use the [[https://github.com/jkitchin/org-ref][org-ref]] package, stop and reconsider!  As mentioned on the main README, the org-node tables [[https://github.com/meedstrom/org-node#limitation-org-ref][only collect a subset of org-ref v3 citations]].
 
 ------
 
@@ -83,7 +83,7 @@ Now for the magic trick.  Enable one /or both/ of the following modes.
 (org-node-fakeroam-jit-backlinks-mode) ;; skip DB for Roam buffer
 #+end_src
 
-What do they do?  The *DB-Feed-Mode* keeps the org-roam DB up to date, by writing to it on save.  Use it if you have various Roam extensions that need the DB.  It should be fast, but may still not be instant on a large file.
+What do they do?  The *DB-Feed-Mode* keeps the org-roam DB up to date, by writing to it on save.  Use it if you have various Roam extensions that need the DB.  It should be pretty fast, but still not ideal in large files.  (contributions welcome)
 
 If you do not need the DB, I recommend skipping it.
 
@@ -107,7 +107,7 @@ This is a place where I request contributions, since 6 seconds still seems a lot
 
 *** Tip: On very slow filesystems
 
-I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam ([[https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819][11 seconds]] just to goto next daily!).  A Redditor also said Apple NFS is not ideal for Emacs.  Microsoft NTFS seems to have a reputation as well.
+I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam ([[https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819][11 seconds]] just to goto next daily!).  A Redditor also said Apple NFS is not ideal for Emacs.  Microsoft NTFS seems to have a reputation in Emacs country as well.
 
 Good news.  You can override some functions to make them look up org-node tables and avoid the filesystem:
 
@@ -125,7 +125,7 @@ Good news.  You can override some functions to make them look up org-node tables
 *** Tip: Word-wrap in the Roam buffer?
 This has nothing to do with org-node, but I actually didn't know this for ages.
 
-If you don't hard-wrap but prefer visual-line-mode or similar ([[https://github.com/org-roam/org-roam/issues/1862][org-roam#1862]]), you have to enable such modes yourself -- it sensibly doesn't inherit your Org hooks:
+If you don't hard-wrap text but prefer visual-line-mode or similar, you have to enable such modes yourself -- it sensibly doesn't inherit your Org hooks ([[https://github.com/org-roam/org-roam/issues/1862][org-roam#1862]]):
 
 #+begin_src elisp
 (add-hook 'org-roam-mode-hook #'visual-line-mode)
