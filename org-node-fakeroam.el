@@ -280,7 +280,9 @@ the user invokes the command."
                (display-buffer (get-buffer-create org-roam-buffer))
                (org-roam-buffer-persistent-redisplay)))
       ('exists (let ((display-buffer-overriding-action
-                      '(display-buffer-use-some-window)))
+                      '((display-buffer-in-previous-window
+                         display-buffer-pop-up-window)
+                        (inhibit-same-window . t))))
                  (display-buffer org-roam-buffer))))))
 
 
