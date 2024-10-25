@@ -41,6 +41,10 @@
 
 ;;;; Utils
 
+(defgroup org-node-fakeroam nil
+  "Shims for org-roam."
+  :group 'org-node)
+
 ;;;###autoload
 (defun org-node-fakeroam-new-via-roam-capture ()
   "Call `org-roam-capture-' with predetermined arguments.
@@ -76,7 +80,6 @@ See also `org-node-fakeroam-fast-render-mode'.
 
 -----"
   :global t
-  :group 'org-node
   (if org-node-fakeroam-redisplay-mode
       (progn
         (add-hook 'org-mode-hook #'org-roam-buffer--setup-redisplay-h)
@@ -111,7 +114,6 @@ Stores the value of table `org-node-fakeroam--id<>previews' between
 sessions.
 
 Only meaningful if `org-node-fakeroam-persist-previews' is non-nil."
-  :group 'org-node
   :type 'file)
 
 (defcustom org-node-fakeroam-persist-previews nil
@@ -121,9 +123,7 @@ Only meaningful with `org-node-fakeroam-fast-render-mode' active.
 
 Keep in mind it would store potentially world-readable note contents at
 `org-node-fakeroam-previews-file'.  That may be moot at the moment, as
-org-node itself does the same under /tmp (or variable
-`temporary-file-directory')."
-  :group 'org-node
+org-node itself does the same under /tmp."
   :type 'boolean)
 
 (defvar org-node-fakeroam--last-hash (sxhash org-node-fakeroam--id<>previews))
@@ -201,7 +201,6 @@ from large files.
 
 -----"
   :global t
-  :group 'org-node
   (if org-node-fakeroam-fast-render-mode
       (progn
         (advice-add #'org-roam-buffer-render-contents :before
@@ -300,7 +299,6 @@ not need it for other things.
 
 -----"
   :global t
-  :group 'org-node
   (if org-node-fakeroam-jit-backlinks-mode
       (progn
         (unless org-node-cache-mode
@@ -395,7 +393,6 @@ active, and intermittently merge the temporary file with the original.
 
 -----"
   :global t
-  :group 'org-node
   (org-roam-db--close-all)
   (cancel-timer org-node-fakeroam--overwrite-db-timer)
 
