@@ -122,11 +122,22 @@ Good news.  You can override some functions to make them look up org-node tables
             #'org-node-fakeroam-daily-note-p)
 #+end_src
 
-*** Tip: Word-wrap in the Roam buffer?
-This has nothing to do with org-node, but I actually didn't know this for ages.
+** Tips on configuring org-roam
+These tips have nothing to do with this package in specific, but it's stuff I'd have liked to know.
+
+*** Word-wrap in the org-roam buffer
 
 If you don't hard-wrap text but prefer visual-line-mode or similar, you have to enable such modes yourself -- it sensibly doesn't inherit your Org hooks ([[https://github.com/org-roam/org-roam/issues/1862][org-roam#1862]]):
 
 #+begin_src elisp
 (add-hook 'org-roam-mode-hook #'visual-line-mode)
+#+end_src
+
+*** Collapse sections by default
+
+If you prefer the org-roam buffer to start in collapsed state:
+
+#+begin_src elisp
+(add-to-list 'org-roam-buffer-postrender-functions
+             #'magit-section-show-level-2)
 #+end_src

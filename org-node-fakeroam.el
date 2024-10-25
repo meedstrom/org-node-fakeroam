@@ -130,7 +130,7 @@ org-node itself does the same under /tmp."
 (defun org-node-fakeroam--fast-render-persist ()
   "Sync cached previews to disk."
   (if org-node-fakeroam-persist-previews
-      ;; Only proceed if table has grown
+      ;; Only proceed if table has changed
       (when (/= org-node-fakeroam--last-hash
                 (sxhash org-node-fakeroam--id<>previews))
         (org-node-fakeroam--clean-stale-previews)
@@ -184,6 +184,9 @@ Then start intermittently syncing to disk."
                            (car (read-from-string (buffer-string))))))
           (when (hash-table-p data)
             (setq org-node-fakeroam--id<>previews data)))))))
+
+;; TODO: Patch `org-roam-end-of-meta-data', responsible for 23% of CPU in my
+;;       benchmark
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-fast-render-mode
@@ -544,9 +547,9 @@ instance\\='s copy."
                  (org-node-fakeroam--db-add-file-level-data node))
                (org-node-fakeroam--db-add-node node)))))
 
-;; Purpose-focused alternative to `org-node-fakeroam-db-rebuild'
-;; because that is not instant.
-
+;; Purpose-focused alternative to `org-node-fakeroam-db-rebuild' because that
+;; is not instant.  Unfortunately, this incurs some cost for having to clean
+;; the DB before adding new data.
 ;; FIXME: Still too slow on a file with 400 nodes & 3000 links.
 ;;        Profiler says most of it is in EmacSQL, maybe some SQL PRAGMA
 ;;        settings would fix?  Or gather all data for one single `emacsql' call?
