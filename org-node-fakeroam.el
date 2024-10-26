@@ -19,7 +19,7 @@
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "1.5.10") (org-roam "2.2.2") (emacsql "4.0.3"))
+;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "1.6.1") (org-roam "2.2.2") (emacsql "4.0.3"))
 
 ;;; Commentary:
 
@@ -136,16 +136,8 @@ org-node itself does the same under /tmp."
         (org-node-fakeroam--clean-stale-previews)
         (setq org-node-fakeroam--last-hash
               (sxhash org-node-fakeroam--id<>previews))
-        (let ((buf (find-buffer-visiting org-node-fakeroam-previews-file)))
-          (when buf (kill-buffer buf))
-          (write-region (prin1-to-string org-node-fakeroam--id<>previews
-                                         nil
-                                         '((length . nil) (level . nil)))
-                        nil
-                        org-node-fakeroam-previews-file
-                        nil
-                        'quiet)
-          (when buf (find-file-noselect org-node-fakeroam-previews-file))))
+        (org-node--write-eld org-node-fakeroam--id<>previews
+                             org-node-fakeroam-previews-file))
     (cancel-timer org-node-fakeroam--persistence-timer)
     (setq org-node-fakeroam--did-setup-persistence nil)))
 
