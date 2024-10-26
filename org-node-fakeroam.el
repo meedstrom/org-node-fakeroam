@@ -67,7 +67,7 @@ function only exists in case you had patched the definition of
   (org-roam-node-slug (org-roam-node-create :title title)))
 
 
-;;;; Roam buffer hacks
+;;;; Org-roam buffer bonus commands
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-redisplay-mode
@@ -93,6 +93,32 @@ See also `org-node-fakeroam-fast-render-mode'.
       (dolist (buf (org-buffer-list))
         (with-current-buffer buf
           (remove-hook 'post-command-hook #'org-roam-buffer--redisplay-h t))))))
+
+(defun org-node-fakeroam-show-buffer ()
+  "Display an org-roam buffer xor refresh an already visible one.
+
+To reiterate: if it was not visible, only bring it up for
+display, do NOT also refresh it.  Leave that for the second time
+the user invokes the command."
+  (interactive)
+  (if (derived-mode-p 'org-roam-mode)
+      (org-roam-buffer-refresh)
+    (pcase (org-roam-buffer--visibility)
+      ('visible (if (derived-mode-p 'org-mode)
+                    (org-roam-buffer-persistent-redisplay)
+                  (with-current-buffer org-roam-buffer
+                    (org-roam-buffer-refresh))))
+      ('none (when (derived-mode-p 'org-mode)
+               (display-buffer (get-buffer-create org-roam-buffer))
+               (org-roam-buffer-persistent-redisplay)))
+      ('exists (let ((display-buffer-overriding-action
+                      '((display-buffer-in-previous-window
+                         display-buffer-pop-up-window)
+                        (inhibit-same-window . t))))
+                 (display-buffer org-roam-buffer))))))
+
+
+;;;; Fast Render Mode
 
 (defvar org-node-fakeroam--id<>previews (make-hash-table :test #'equal)
   "1:N table mapping IDs to seen previews of backlink contexts.
@@ -267,30 +293,6 @@ position of a link."
              ;; NOTE: We cannot use `org-roam-fontify-like-in-org-mode'
              ;;       since it is temporarily overridden.
              (org-fontify-like-in-org-mode (funcall orig-fn file pt))))))))
-
-;; Just a bonus command
-(defun org-node-fakeroam-show-buffer ()
-  "Display an org-roam buffer xor refresh an already visible one.
-
-To reiterate: if it was not visible, only bring it up for
-display, do NOT also refresh it.  Leave that for the second time
-the user invokes the command."
-  (interactive)
-  (if (derived-mode-p 'org-roam-mode)
-      (org-roam-buffer-refresh)
-    (pcase (org-roam-buffer--visibility)
-      ('visible (if (derived-mode-p 'org-mode)
-                    (org-roam-buffer-persistent-redisplay)
-                  (with-current-buffer org-roam-buffer
-                    (org-roam-buffer-refresh))))
-      ('none (when (derived-mode-p 'org-mode)
-               (display-buffer (get-buffer-create org-roam-buffer))
-               (org-roam-buffer-persistent-redisplay)))
-      ('exists (let ((display-buffer-overriding-action
-                      '((display-buffer-in-previous-window
-                         display-buffer-pop-up-window)
-                        (inhibit-same-window . t))))
-                 (display-buffer org-roam-buffer))))))
 
 
 ;;;; Backlinks: JIT shim
