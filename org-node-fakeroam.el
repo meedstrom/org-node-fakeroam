@@ -103,82 +103,95 @@ corresponds to a link\\='s buffer position relative to that of
 the heading that has said ID, and TEXT is an output of
 `org-roam-preview-get-contents'.")
 
-(defcustom org-node-fakeroam-previews-file
-  ;; TODO: Should probably just do a PR to
-  ;;       https://github.com/emacscollective/no-littering
-  (file-name-concat (or (bound-and-true-p no-littering-var-directory)
-                        user-emacs-directory)
-                    "org-node-fakeroam-cached-previews.eld")
-  "File containing cached backlink previews.
-Stores the value of table `org-node-fakeroam--id<>previews' between
-sessions.
-
-Only meaningful if `org-node-fakeroam-persist-previews' is non-nil."
-  :type 'file)
-
-(defcustom org-node-fakeroam-persist-previews nil
+(defcustom org-node-fakeroam-fast-render-persist nil
   "Whether to sync backlink previews to disk.
 
 Only meaningful with `org-node-fakeroam-fast-render-mode' active.
 
-Keep in mind it would store potentially world-readable note contents at
-`org-node-fakeroam-previews-file'.  That may be moot at the moment, as
-org-node itself does the same under /tmp."
+Keep in mind it would store potentially world-readable note contents
+under `org-node-fakeroam-data-dir'."
   :type 'boolean)
 
-(defvar org-node-fakeroam--last-hash (sxhash org-node-fakeroam--id<>previews))
-(defun org-node-fakeroam--fast-render-persist ()
+(defcustom org-node-fakeroam-data-dir user-emacs-directory
+  "Directory in which to persist data between sessions.
+Currently only used by `org-node-fakeroam-fast-render-persist'."
+  :type `(choice (const :value ,user-emacs-directory)
+                 directory))
+
+(defun org-node-fakeroam--previews-file ()
+  "Return path to file storing persisted previews."
+  (mkdir org-node-fakeroam-data-dir t)
+  (file-name-concat org-node-fakeroam-data-dir
+                    "org-node-fakeroam-fast-render-previews.eld"))
+
+(defvar org-node-fakeroam--last-tbl-state 0)
+(defun org-node-fakeroam--persist ()
   "Sync cached previews to disk."
-  (if org-node-fakeroam-persist-previews
+  (if org-node-fakeroam-fast-render-persist
       ;; Only proceed if table has changed
-      (when (/= org-node-fakeroam--last-hash
-                (sxhash org-node-fakeroam--id<>previews))
+      (when (/= org-node-fakeroam--last-tbl-state
+                (hash-table-count org-node-fakeroam--id<>previews))
         (org-node-fakeroam--clean-stale-previews)
-        (setq org-node-fakeroam--last-hash
-              (sxhash org-node-fakeroam--id<>previews))
+        (setq org-node-fakeroam--last-tbl-state
+              (hash-table-count org-node-fakeroam--id<>previews))
         (org-node--write-eld org-node-fakeroam--id<>previews
-                             org-node-fakeroam-previews-file))
+                             (org-node-fakeroam--previews-file)))
     (cancel-timer org-node-fakeroam--persistence-timer)
     (setq org-node-fakeroam--did-setup-persistence nil)))
 
 (defun org-node-fakeroam--clean-stale-previews ()
   "Clean stale members of table `org-node-fakeroam--id<>previews'."
   (let ((valid-positions (make-hash-table :test #'equal)))
-    (cl-loop for links being each hash-value of org-node--dest<>links do
-             (dolist (link links)
-               (push (org-node-link-pos link)
-                     (gethash (org-node-link-origin link) valid-positions))))
-    (maphash (lambda (id previews)
-               (if-let ((node (gethash id org-node--id<>node)))
-                   (cl-loop for (pos-diff . _text) in previews
-                            unless (memq (+ (org-node-get-pos node) pos-diff)
-                                         (gethash id valid-positions))
-                            do (remhash id org-node-fakeroam--id<>previews))
-                 (remhash id org-node-fakeroam--id<>previews)))
-             org-node-fakeroam--id<>previews)))
+    (maphash
+     (lambda (_ links)
+       (dolist (link links)
+         (push (org-node-link-pos link)
+               (gethash (org-node-link-origin link) valid-positions))))
+     org-node--dest<>links)
+    (maphash
+     (lambda (id previews)
+       (let ((node (gethash id org-node--id<>node))
+             (valid (gethash id valid-positions)))
+         (or (and node
+                  (cl-loop
+                   for (pos-diff . _text) in previews
+                   always (memq (+ pos-diff (org-node-get-pos node)) valid)))
+             (remhash id org-node-fakeroam--id<>previews))))
+     org-node-fakeroam--id<>previews)))
 
 (defvar org-node-fakeroam--persistence-timer (timer-create))
 (defvar org-node-fakeroam--did-setup-persistence nil)
 (defun org-node-fakeroam--try-setup-persistence (&rest _)
   "Try to restore `org-node-fakeroam--id<>previews' from disk.
-Then start intermittently syncing to disk."
-  (when (and org-node-fakeroam-persist-previews
+Then start occasionally syncing to disk."
+  (when (and org-node-fakeroam-fast-render-persist
              (not org-node-fakeroam--did-setup-persistence))
     (setq org-node-fakeroam--did-setup-persistence t)
+    ;; Clean up deprecated use of persist.el
+    (let ((old (org-node-changes--guess-persist-filename
+                'org-node-fakeroam--saved-previews)))
+      (when (file-exists-p old)
+        (delete-file old)))
+    ;; Transit changed defaults
+    (let ((old (or (bound-and-true-p org-node-fakeroam-previews-file)
+                   (file-name-concat
+                    (or (bound-and-true-p no-littering-var-directory)
+                        user-emacs-directory)
+                    "org-node-fakeroam-cached-previews.eld"))))
+      (when (file-exists-p old)
+        (rename-file old (org-node-fakeroam--previews-file) t)))
+    ;; Setup
     (cancel-timer org-node-fakeroam--persistence-timer)
     (setq org-node-fakeroam--persistence-timer
-          (run-with-idle-timer 60 t #'org-node-fakeroam--fast-render-persist))
-    (when (file-readable-p org-node-fakeroam-previews-file)
+          (run-with-idle-timer 60 t #'org-node-fakeroam--persist))
+    (when (file-readable-p (org-node-fakeroam--previews-file))
       ;; Load from disk
       (with-temp-buffer
-        (insert-file-contents org-node-fakeroam-previews-file)
-        (when-let ((data (ignore-errors
-                           (car (read-from-string (buffer-string))))))
+        (insert-file-contents (org-node-fakeroam--previews-file))
+        (let ((data (read (current-buffer))))
           (when (hash-table-p data)
+            (setq org-node-fakeroam--last-tbl-state (hash-table-count data))
             (setq org-node-fakeroam--id<>previews data)))))))
-
-;; TODO: Patch `org-roam-end-of-meta-data', responsible for 23% of CPU in my
-;;       benchmark
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-fast-render-mode
@@ -190,7 +203,7 @@ Then start intermittently syncing to disk."
 2. Cache the previews, so that there is less or no lag the next
    time the same nodes are visited.
 
-See also `org-node-fakeroam-persist-previews' if you have a particularly
+See also `org-node-fakeroam-fast-render-persist' if you have a particularly
 slow filesystem or CPU, or often see dozens of backlinks originating
 from large files.
 
@@ -787,8 +800,7 @@ GOTO and KEYS are like in `org-roam-dailies--capture'."
                                    'org-node-fakeroam--update-db)
 
 (org-node-changes--def-whiny-alias 'org-node-fakeroam-fast-render-clean-cache
-                                   'org-node-fakeroam--clean-stale-previews
-                                   nil t)
+                                   'org-node-fakeroam--clean-stale-previews)
 
 (define-obsolete-function-alias
   'org-node-fakeroam-show-roam-buffer
@@ -796,13 +808,19 @@ GOTO and KEYS are like in `org-roam-dailies--capture'."
   "2024-10-19")
 
 (defun org-node-fakeroam-setup-persistence ()
-  "Set `org-node-fakeroam-persist-previews' to t.
+  "Set `org-node-fakeroam-fast-render-persist' to t.
 
 Will be removed eventually.  Configure that variable instead."
   (declare (obsolete nil "2024-10-19"))
-  (setq org-node-fakeroam-persist-previews t))
+  (setq org-node-fakeroam-fast-render-persist t)
+  (message "Configure `org-node-fakeroam-fast-render-persist' instead of calling obsolete `org-node-fakeroam-setup-persistence'"))
+
 (defalias 'org-node-fakeroam-setup-persist #'org-node-fakeroam-setup-persistence)
 (defalias 'org-node-fakeroam-enable-persist #'org-node-fakeroam-setup-persistence)
+
+(define-obsolete-variable-alias
+  'org-node-fakeroam-persist-previews 'org-node-fakeroam-fast-render-persist
+  "2024-10-26")
 
 (provide 'org-node-fakeroam)
 
