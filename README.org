@@ -1,8 +1,8 @@
 #+TITLE: org-node-fakeroam
 #+AUTHOR: Martin Edström
 #+EMAIL: meedstrom91@gmail.com
-#+DATE: 2024
 #+LANGUAGE: en
+#+STARTUP: content
 #+TEXINFO_DIR_CATEGORY: Emacs
 #+TEXINFO_DIR_TITLE: Org-node Fakeroam: (org-node-fakeroam).
 #+TEXINFO_DIR_DESC: Integrate org-roam with org-node.

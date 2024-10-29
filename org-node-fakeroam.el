@@ -19,7 +19,7 @@
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "1.6.1") (org-roam "2.2.2") (emacsql "4.0.3"))
+;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "1.7.0") (org-roam "2.2.2") (emacsql "4.0.3"))
 
 ;;; Commentary:
 
@@ -31,7 +31,6 @@
 (require 'ol)
 (require 'org-node)
 (require 'org-node-changes)
-(require 'org-node-parser)
 (require 'org-roam)
 (require 'org-roam-db)
 (require 'emacsql)
@@ -117,17 +116,36 @@ the user invokes the command."
                         (inhibit-same-window . t))))
                  (display-buffer org-roam-buffer))))))
 
+;; (advice-add 'toggle-window-dedicated :after #'org-node-fakeroam-dedicate-same)
+(defun org-node-fakeroam-dedicate-same (&rest args)
+  "If window is dedicated, set org-roam buffer dedication as well.
+Designed as after-advice for Emacs 30 `toggle-window-dedicated'.
+
+Can also be after-advice on any function that toggles dedication.
+If that function operates on a window that is not the selected one, the
+first argument in ARGS should name the window."
+  (let* ((wd (window-normalize-window
+              (when (window-valid-p (car args)) (car args))))
+         (buf (window-buffer wd)))
+    (when (org-roam-buffer-p buf)
+      (if (window-dedicated-p wd)
+          ;; Just became dedicated
+          (with-current-buffer buf
+            (rename-buffer (org-roam-buffer--dedicated-name
+                            org-roam-buffer-current-node)))
+        ;; Just became undedicated
+        (when (and (not (string= org-roam-buffer (buffer-name buf)))
+                   (get-buffer org-roam-buffer))
+          (kill-buffer org-roam-buffer))
+        (with-current-buffer buf
+          (rename-buffer org-roam-buffer))))))
+
 
 ;;;; Fast Render Mode
 
-(defvar org-node-fakeroam--id<>previews (make-hash-table :test #'equal)
-  "1:N table mapping IDs to seen previews of backlink contexts.
-For use by `org-node-fakeroam-fast-render-mode'.
-
-Each preview is a cons cell \(POS-DIFF . TEXT) where POS-DIFF
-corresponds to a link\\='s buffer position relative to that of
-the heading that has said ID, and TEXT is an output of
-`org-roam-preview-get-contents'.")
+(define-obsolete-variable-alias
+  'org-node-fakeroam-persist-previews 'org-node-fakeroam-fast-render-persist
+  "2024-10-26")
 
 (defcustom org-node-fakeroam-fast-render-persist nil
   "Whether to sync backlink previews to disk.
@@ -150,6 +168,15 @@ Currently only used by `org-node-fakeroam-fast-render-persist'."
   (file-name-concat org-node-fakeroam-data-dir
                     "org-node-fakeroam-fast-render-previews.eld"))
 
+(defvar org-node-fakeroam--id<>previews (make-hash-table :test #'equal)
+  "1:N table mapping IDs to seen previews of backlink contexts.
+For use by `org-node-fakeroam-fast-render-mode'.
+
+Each preview is a cons cell \(POS-DIFF . TEXT) where POS-DIFF
+corresponds to a link\\='s buffer position relative to that of
+the heading that has said ID, and TEXT is an output of
+`org-roam-preview-get-contents'.")
+
 (defvar org-node-fakeroam--last-tbl-state 0)
 (defun org-node-fakeroam--persist ()
   "Sync cached previews to disk."
@@ -160,8 +187,19 @@ Currently only used by `org-node-fakeroam-fast-render-persist'."
         (org-node-fakeroam--clean-stale-previews)
         (setq org-node-fakeroam--last-tbl-state
               (hash-table-count org-node-fakeroam--id<>previews))
-        (org-node--write-eld org-node-fakeroam--id<>previews
-                             (org-node-fakeroam--previews-file)))
+        ;; Prevent signal from a rare bug (Emacs 29 & 30+); in some cases,
+        ;; `userlock--ask-user-about-supersession-threat' assumes that
+        ;; `write-region' is being called with the file buffer current.
+        ;; User only sees: "Wrong type argument: stringp nil".
+        ;; Sometimes a cl-assertion-failure.
+        ;; Can't repro reliably, so not reporting the bug yet.
+        (let ((file (org-node-fakeroam--previews-file)))
+          (with-current-buffer (or (get-truename-buffer file)
+                                   (get-file-buffer file)
+                                   (current-buffer))
+            (write-region
+             (prin1-to-string org-node-fakeroam--id<>previews () '((length)))
+             () file () 'quiet))))
     (cancel-timer org-node-fakeroam--persistence-timer)
     (setq org-node-fakeroam--did-setup-persistence nil)))
 
@@ -193,11 +231,6 @@ Then start occasionally syncing to disk."
   (when (and org-node-fakeroam-fast-render-persist
              (not org-node-fakeroam--did-setup-persistence))
     (setq org-node-fakeroam--did-setup-persistence t)
-    ;; Clean up deprecated use of persist.el
-    (let ((old (org-node-changes--guess-persist-filename
-                'org-node-fakeroam--saved-previews)))
-      (when (file-exists-p old)
-        (delete-file old)))
     ;; Transit changed defaults
     (let ((old (or (bound-and-true-p org-node-fakeroam-previews-file)
                    (file-name-concat
@@ -320,8 +353,8 @@ caches all results so that it should only be slow the first time."
 (defun org-node-fakeroam--file-buffer (file)
   "Semi-persistent temp buffer holding the content of FILE.
 
-Emulates `org-roam-with-temp-buffer', but the buffer is kept
-around until the org-roam buffer finishes rendering all backlinks."
+Emulates `org-roam-with-temp-buffer', but the buffer is intended to
+exist until the org-roam buffer finishes rendering all backlinks."
   (let ((bufname (format " *fakeroam-%d*" (sxhash file))))
     (or (get-buffer bufname)
         (with-current-buffer (get-buffer-create bufname t)
@@ -352,8 +385,7 @@ you\\='re in a temp buffer\).  As bonus, ignore inlinetasks."
 
 
 ;;;; Backlinks: JIT shim
-;; Fabricate knockoff Roam backlinks in real time, so that no DB is needed
-;; for displaying the Roam buffer
+;; Fabricate knockoff Org-roam backlink objects in real time
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-jit-backlinks-mode
@@ -441,7 +473,7 @@ Designed to override `org-roam-reflinks-get'."
                                       (list (org-node-get-title src-node))))))))))
 
 
-;;;; Backlinks: Feed-the-db shim
+;;;; Shim to feed data to the DB
 
 (defvar org-node-fakeroam--orig-db-loc nil)
 (defvar org-node-fakeroam--overwrite-db-timer (timer-create))
@@ -469,9 +501,6 @@ active, and intermittently merge the temporary file with the original.
           (message "org-node-fakeroam: You probably want to set `org-roam-db-update-on-save' to nil"))
         (unless org-node-cache-mode
           (message "`org-node-fakeroam-db-feed-mode' will do nothing without `org-node-cache-mode'"))
-        (unless (file-writable-p org-roam-db-location)
-          (error "`org-roam-db-location' not writable: %s"
-                 org-roam-db-location))
         (setq org-node-fakeroam--orig-db-loc org-roam-db-location)
         (setq org-roam-db-location (org-node-fakeroam--mk-uniq-db-loc))
         (when (file-readable-p org-node-fakeroam--orig-db-loc)
@@ -501,9 +530,9 @@ value that looks like \(:outline OUTLINE-PATH-TO-THE-NODE).
 
 This info is trivial to reconstruct from the first key, :source-node,
 hence `org-node-fakeroam-db-feed-mode' not including it with the link
-metadata sent to the DB.  Such pre-construction would cost much more
-compute, as it has to be done for every link inside the buffer being
-saved."
+metadata sent to the DB.  Such pre-construction would cost more compute
+\(produce garbage), as it has to be done for every link inside the
+buffer being saved."
   (unless org-node-fakeroam-jit-backlinks-mode ;; Not needed if that is enabled
     (let ((roam-node (plist-get args :source-node)))
       (setf (plist-get args :properties)
@@ -554,7 +583,7 @@ This function lets the temporary copy overwrite the original."
 (defun org-node-fakeroam--mk-uniq-db-loc ()
   "Return a temporary file ending in .db that does not yet exist."
   (let (path (ctr 0))
-    (while (file-exists-p (setq path (org-node-parser--tmpfile
+    (while (file-exists-p (setq path (org-node--tmpfile
                                       "org-roam.%d.db" (cl-incf ctr)))))
     path))
 
@@ -568,7 +597,7 @@ being handled by several open EmacSQL connections.
 
 This function lets the newest copy overwrite the current
 instance\\='s copy."
-  (let ((locs (cl-loop for file in (directory-files (org-node-parser--tmpfile)
+  (let ((locs (cl-loop for file in (directory-files (org-node--tmpfile)
                                                     t "org-roam" t)
                        when (string-suffix-p ".db" file)
                        collect file)))
@@ -854,12 +883,6 @@ GOTO and KEYS are like in `org-roam-dailies--capture'."
                                    'org-node-fakeroam-slugify-via-roam
                                    "2024-09-17" nil "2024 November 30")
 
-(org-node-changes--def-whiny-alias 'org-node-fakeroam--db-update-files
-                                   'org-node-fakeroam--update-db)
-
-(org-node-changes--def-whiny-alias 'org-node-fakeroam-fast-render-clean-cache
-                                   'org-node-fakeroam--clean-stale-previews)
-
 (define-obsolete-function-alias
   'org-node-fakeroam-show-roam-buffer
   'org-node-fakeroam-show-buffer
@@ -871,14 +894,11 @@ GOTO and KEYS are like in `org-roam-dailies--capture'."
 Will be removed eventually.  Configure that variable instead."
   (declare (obsolete nil "2024-10-19"))
   (setq org-node-fakeroam-fast-render-persist t)
-  (message "Configure `org-node-fakeroam-fast-render-persist' instead of calling obsolete `org-node-fakeroam-setup-persistence'"))
+  (message
+   "Configure `org-node-fakeroam-fast-render-persist' instead of calling obsolete `org-node-fakeroam-setup-persistence'"))
 
-(defalias 'org-node-fakeroam-setup-persist #'org-node-fakeroam-setup-persistence)
-(defalias 'org-node-fakeroam-enable-persist #'org-node-fakeroam-setup-persistence)
-
-(define-obsolete-variable-alias
-  'org-node-fakeroam-persist-previews 'org-node-fakeroam-fast-render-persist
-  "2024-10-26")
+(fset 'org-node-fakeroam-setup-persist #'org-node-fakeroam-setup-persistence)
+(fset 'org-node-fakeroam-enable-persist #'org-node-fakeroam-setup-persistence)
 
 (provide 'org-node-fakeroam)
 
