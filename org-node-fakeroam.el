@@ -27,13 +27,6 @@
 
 ;;; Code:
 
-;; TODO: Next version bump, maybe sync major and minor number with upstream.
-;;       Here are past dependencies:
-
-;; fakeroam 1.5.0 - needs org-node ^1.7.0
-;; fakeroam 1.4.2 - needs org-node ^1.6.1
-;; fakeroam 1.3.3 - needs org-node ^1.5.10
-
 (require 'cl-lib)
 (require 'ol)
 (require 'org-node)
