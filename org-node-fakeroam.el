@@ -38,6 +38,10 @@
 
 (declare-function org-roam-dailies--capture "org-roam-dailies")
 
+(unless (fboundp 'org-node--write-eld)
+  (display-warning 'org-node-fakeroam
+                   "Fakeroam v1.4 depends on org-node v1.6.x"))
+
 
 ;;;; Utils
 
