@@ -38,6 +38,12 @@
 
 (declare-function org-roam-dailies--capture "org-roam-dailies")
 
+(unless (and (fboundp 'org-node-parser--tmpfile)
+             (not (fboundp 'org-node--write-eld))
+             (fboundp 'org-node-get-reflinks-to))
+  (display-warning 'org-node-fakeroam
+                   "Fakeroam v1.3 depends on org-node v1.5.x"))
+
 
 ;;;; Utils
 
