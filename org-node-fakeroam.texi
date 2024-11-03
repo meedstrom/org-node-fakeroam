@@ -35,12 +35,17 @@ Bonus setup
 * Speeding up the backlinks buffer::
 * Speeding up the org-roam DB::
 * Misc::
+* Tips on configuring org-roam::
 
 Misc
 
 * Tip Rebuilding the Roam DB::
 * Tip On very slow filesystems::
-* Tip Word-wrap in the Roam buffer?::
+
+Tips on configuring org-roam
+
+* Word-wrap in the org-roam buffer::
+* Collapse sections by default::
 
 @end detailmenu
 @end menu
@@ -48,36 +53,40 @@ Misc
 @node Intro
 @chapter Intro
 
-This package can be used in one of two ways: purely to speed up some parts of org-roam, or to use org-node side-by-side with org-roam.
+This package can be used in one of two ways: purely to speed up some parts of org-roam, or to use it side-by-side with @uref{https://github.com/meedstrom/org-node, org-node}.
 
 Either way, @samp{org-node-cache-mode} must be enabled, and it's a good idea to go through the following config.
 
 @node Getting started
 @chapter Getting started
 
-These settings help you feel at home using both org-roam and @uref{https://github.com/meedstrom/org-node, org-node} side-by-side:
+Mandatory: ensure that the underlying org-id system knows about the files org-roam knows about.  You'd think it would, but that isn't a given!  Do either of these two:
+
+@enumerate
+@item
+Run @samp{M-x org-roam-update-org-id-locations} every now and then, or on an idle timer.
+
+@lisp
+(run-with-idle-timer 45 t #'org-roam-update-org-id-locations)
+@end lisp
+
+@item
+(Recommended) Edit the following setting so it includes your @samp{org-roam-directory}.  Supposing that is "~/org/", set this:
+
+@lisp
+(setq org-node-extra-id-dirs '("~/org/"))
+@end lisp
+@end enumerate
+
+Finally, run @samp{M-x org-node-reset} or just restart Emacs.
+
+In addition, these settings help you feel at home trying out any org-node command:
 
 @lisp
 (setq org-node-creation-fn #'org-node-fakeroam-new-via-roam-capture)
 (setq org-node-slug-fn #'org-node-fakeroam-slugify-via-roam)
 (setq org-node-datestamp-format "%Y%m%d%H%M%S-")
 @end lisp
-
-Make sure the underlying org-id package knows about the files org-roam knows about.  You'd think it would, but that isn't a given!  Do either of these two:
-
-@enumerate
-@item
-Run @samp{M-x org-roam-update-org-id-locations} every now and then.
-
-@item
-Edit the following setting so it includes your @samp{org-roam-directory}.  Supposing that is "~/org/", set this:
-@end enumerate
-
-@lisp
-(setq org-node-extra-id-dirs '("~/org/"))
-@end lisp
-
-Finally, run @samp{M-x org-node-reset} or just restart Emacs.  Now org-node's commands should function with minimum surprises.
 
 @node Bonus setup
 @chapter Bonus setup
@@ -86,6 +95,7 @@ Finally, run @samp{M-x org-node-reset} or just restart Emacs.  Now org-node's co
 * Speeding up the backlinks buffer::
 * Speeding up the org-roam DB::
 * Misc::
+* Tips on configuring org-roam::
 @end menu
 
 @node Speeding up the backlinks buffer
@@ -97,20 +107,22 @@ Enable this mode:
 (org-node-fakeroam-fast-render-mode) ;; build the Roam buffer faster
 @end lisp
 
-Optionally, you can speed it up further by persisting on disk all the preview snippets.  The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
-
-You might think that this only helps performance for someone who often restarts Emacs, but the nature of notes is such that you can go months between revisits of a given note, and it's @emph{so nice} for the buffer to still be instant instead of only near-instant.  YMMV; maybe your device is beefy enough anyway.
+Optionally, you can further improve the experience by persisting on disk all the preview snippets, instead of only in the current Emacs session.
 
 @lisp
-(org-node-fakeroam-setup-persistence) ;; cache previews on disk
+(setq org-node-fakeroam-fast-render-persist t)
 @end lisp
+
+The only reason it's not done by default is that it stores potentially world-readable text under "~/.emacs.d", and it's up to you to judge if that's a problem.
+
+You might think that this only matters to someone who often restarts Emacs, but the nature of notes is such that you can go months between revisits of a given note, and it's @emph{so nice} for the buffer to still be instant instead of only near-instant.  YMMV; maybe your device is beefy enough anyway.
 
 @node Speeding up the org-roam DB
 @section Speeding up the org-roam DB
 
 If big files are slow to save, this section is for you.  We will turn off some org-roam stuff and instruct it to look up org-node tables.
 
-PROVISO: if you use the @uref{https://github.com/jkitchin/org-ref, org-ref} package, stop and reconsider!  As mentioned on the main README, the org-node tables only collect org-ref v3 citations that were within bracketed links that start with "cite", such as @samp{[[citealt:&demski2019]]}, but NOT @samp{[[fnotecite:&ioannidis2005]]} since it does not start with "cite", NOR @samp{citealt:&fallenstein2015} since it is not wrapped in brackets.
+PROVISO: if you use the @uref{https://github.com/jkitchin/org-ref, org-ref} package, stop and reconsider!  As mentioned on the main README, the org-node tables @uref{https://github.com/meedstrom/org-node#limitation-org-ref, only collect a subset of org-ref v3 citations}.
 
 First, let's stop the @samp{org-roam-db-autosync-mode} from doing anything on save.  Either turn it off, or apply the following settings.
 
@@ -132,11 +144,11 @@ Now for the magic trick.  Enable one @emph{or both} of the following modes.
 (org-node-fakeroam-jit-backlinks-mode) ;; skip DB for Roam buffer
 @end lisp
 
-What do they do?  The @strong{DB-Feed-Mode} keeps the org-roam DB up to date, by writing to it on save.  Use it if you have various Roam extensions that need the DB@.  It should be fast, but may still not be instant on a large file.
+What do they do?  The @strong{DB-Feed-Mode} keeps the org-roam DB up to date, by writing to it on save.  Use it if you have various Roam extensions that need the DB@.  It should be pretty fast, but still not ideal in large files.  (contributions welcome)
 
-If you do not need the DB, I recommend skipping it.
+If you do not need the DB, I recommend skipping this mode.  Then it will be good to delete the outdated @samp{org-roam.db} file, due to a Roam hack @uref{https://github.com/meedstrom/org-node#undoing-a-roam-hack, mentioned in the org-node README}.
 
-The @strong{JIT-Backlinks-Mode} will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.  That's right, you can even delete the org-roam.db file and the Roam buffer keeps on working!
+The @strong{JIT-Backlinks-Mode} will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.
 
 @node Misc
 @section Misc
@@ -144,7 +156,6 @@ The @strong{JIT-Backlinks-Mode} will generate backlinks for the Roam buffer out 
 @menu
 * Tip Rebuilding the Roam DB::
 * Tip On very slow filesystems::
-* Tip Word-wrap in the Roam buffer?::
 @end menu
 
 @node Tip Rebuilding the Roam DB
@@ -177,7 +188,7 @@ This is a place where I request contributions, since 6 seconds still seems a lot
 @node Tip On very slow filesystems
 @subsection Tip: On very slow filesystems
 
-I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam (@uref{https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819, 11 seconds} just to goto next daily!).  A Redditor also said Apple NFS is not ideal for Emacs.  Microsoft NTFS seems to have a reputation as well.
+I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam (@uref{https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819, 11 seconds} just to goto next daily!).  A Redditor also said Apple NFS is not ideal for Emacs.  Microsoft NTFS seems to have a reputation in Emacs country as well.
 
 Good news.  You can override some functions to make them look up org-node tables and avoid the filesystem:
 
@@ -192,15 +203,33 @@ Good news.  You can override some functions to make them look up org-node tables
             #'org-node-fakeroam-daily-note-p)
 @end lisp
 
-@node Tip Word-wrap in the Roam buffer?
-@subsection Tip: Word-wrap in the Roam buffer?
+@node Tips on configuring org-roam
+@section Tips on configuring org-roam
 
-This has nothing to do with org-node, but I actually didn't know this for ages.
+These tips have nothing to do with this package in specific, but it's stuff I'd have liked to know.
 
-If you don't hard-wrap but prefer visual-line-mode or similar (@uref{https://github.com/org-roam/org-roam/issues/1862, org-roam#1862}), you have to enable such modes yourself -- it sensibly doesn't inherit your Org hooks:
+@menu
+* Word-wrap in the org-roam buffer::
+* Collapse sections by default::
+@end menu
+
+@node Word-wrap in the org-roam buffer
+@subsection Word-wrap in the org-roam buffer
+
+If you don't hard-wrap text but prefer visual-line-mode or similar, you have to enable such modes yourself -- it sensibly doesn't inherit your Org hooks (@uref{https://github.com/org-roam/org-roam/issues/1862, org-roam#1862}):
 
 @lisp
 (add-hook 'org-roam-mode-hook #'visual-line-mode)
+@end lisp
+
+@node Collapse sections by default
+@subsection Collapse sections by default
+
+If you prefer the org-roam buffer to start in collapsed state:
+
+@lisp
+(add-to-list 'org-roam-buffer-postrender-functions
+             #'magit-section-show-level-2)
 @end lisp
 
 @bye
