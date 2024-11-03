@@ -27,6 +27,13 @@
 
 ;;; Code:
 
+;; TODO: Next version bump, maybe sync major and minor number with upstream.
+;;       Here are past dependencies:
+
+;; fakeroam 1.4.1 - needs org-node ^1.7.0
+;; fakeroam 1.4.0 - needs org-node ^1.6.1
+;; fakeroam 1.3.3 - needs org-node ^1.5.10
+
 (require 'cl-lib)
 (require 'ol)
 (require 'org-node)
@@ -685,14 +692,14 @@ instance\\='s copy."
 (defun org-node-fakeroam--db-add-node (node)
   "Send to the SQLite database all we know about NODE.
 This includes all links and citations that touch NODE."
-  (cl-symbol-macrolet ;; PERF: 20% faster rebuild than with `let'
+  (cl-symbol-macrolet ;; PERF: 20% faster rebuild, than with `let'
       ((id         (org-node-get-id node))
        (file-path  (org-node-get-file-path node))
        (tags       (org-node-get-tags-with-inheritance node))
        (aliases    (org-node-get-aliases node))
        (roam-refs  (org-node-get-refs node))
        (title      (org-node-get-title node))
-       (properties (org-node-get-properties node)) ;; NOTE: no implicit props!
+       (properties (org-node-get-properties node)) ;; explicit props only
        (level      (org-node-get-level node))
        (todo       (org-node-get-todo node))
        (scheduled  (org-node-get-scheduled node))
