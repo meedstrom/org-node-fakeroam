@@ -37,7 +37,6 @@
 (require 'org-roam)
 (require 'org-roam-db)
 (require 'emacsql)
-
 (declare-function org-roam-dailies--capture "org-roam-dailies")
 
 (unless (fboundp 'org-node--tmpfile)
