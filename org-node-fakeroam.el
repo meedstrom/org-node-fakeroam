@@ -167,7 +167,7 @@ Currently only used by `org-node-fakeroam-fast-render-persist'."
   :type `(choice (const :value ,user-emacs-directory)
                  directory))
 
-(defun org-node-fakeroam--previews-file ()
+(defun org-node-fakeroam--fast-render-previews-file ()
   "Return path to file storing persisted previews."
   (mkdir org-node-fakeroam-data-dir t)
   (file-name-concat org-node-fakeroam-data-dir
@@ -198,15 +198,15 @@ the heading that has said ID, and TEXT is an output of
         ;; User only sees: "Wrong type argument: stringp nil".
         ;; Sometimes a cl-assertion-failure.
         ;; Can't repro reliably, so not reporting the bug yet.
-        (let ((file (org-node-fakeroam--previews-file)))
+        (let ((file (org-node-fakeroam--fast-render-previews-file)))
           (with-current-buffer (or (get-truename-buffer file)
                                    (get-file-buffer file)
                                    (current-buffer))
             (write-region
              (prin1-to-string org-node-fakeroam--id<>previews () '((length)))
              () file () 'quiet))))
-    (cancel-timer org-node-fakeroam--persistence-timer)
-    (setq org-node-fakeroam--did-setup-persistence nil)))
+    (cancel-timer org-node-fakeroam--fast-render-persist-timer)
+    (setq org-node-fakeroam--fast-render-did-start-persist nil)))
 
 (defun org-node-fakeroam--clean-stale-previews ()
   "Clean stale members of table `org-node-fakeroam--id<>previews'."
@@ -228,14 +228,14 @@ the heading that has said ID, and TEXT is an output of
              (remhash id org-node-fakeroam--id<>previews))))
      org-node-fakeroam--id<>previews)))
 
-(defvar org-node-fakeroam--persistence-timer (timer-create))
-(defvar org-node-fakeroam--did-setup-persistence nil)
-(defun org-node-fakeroam--try-setup-persistence (&rest _)
+(defvar org-node-fakeroam--fast-render-persist-timer (timer-create))
+(defvar org-node-fakeroam--fast-render-did-start-persist nil)
+(defun org-node-fakeroam--fast-render-try-start-persist (&rest _)
   "Try to restore `org-node-fakeroam--id<>previews' from disk.
 Then start occasionally syncing to disk."
   (when (and org-node-fakeroam-fast-render-persist
-             (not org-node-fakeroam--did-setup-persistence))
-    (setq org-node-fakeroam--did-setup-persistence t)
+             (not org-node-fakeroam--fast-render-did-start-persist))
+    (setq org-node-fakeroam--fast-render-did-start-persist t)
     ;; Transit changed defaults
     (let ((old (or (bound-and-true-p org-node-fakeroam-previews-file)
                    (file-name-concat
@@ -243,15 +243,15 @@ Then start occasionally syncing to disk."
                         user-emacs-directory)
                     "org-node-fakeroam-cached-previews.eld"))))
       (when (file-exists-p old)
-        (rename-file old (org-node-fakeroam--previews-file) t)))
+        (rename-file old (org-node-fakeroam--fast-render-previews-file) t)))
     ;; Setup
-    (cancel-timer org-node-fakeroam--persistence-timer)
-    (setq org-node-fakeroam--persistence-timer
+    (cancel-timer org-node-fakeroam--fast-render-persist-timer)
+    (setq org-node-fakeroam--fast-render-persist-timer
           (run-with-idle-timer 60 t #'org-node-fakeroam--persist))
-    (when (file-readable-p (org-node-fakeroam--previews-file))
+    (when (file-readable-p (org-node-fakeroam--fast-render-previews-file))
       ;; Load from disk
       (with-temp-buffer
-        (insert-file-contents (org-node-fakeroam--previews-file))
+        (insert-file-contents (org-node-fakeroam--fast-render-previews-file))
         (let ((data (read (current-buffer))))
           (when (hash-table-p data)
             (setq org-node-fakeroam--last-tbl-state (hash-table-count data))
@@ -275,54 +275,54 @@ from large files.
   :global t
   (if org-node-fakeroam-fast-render-mode
       (progn
-        (advice-add
-         'org-roam-buffer-render-contents :before #'org-node-fakeroam--try-setup-persistence)
-        (advice-add
-         'org-roam-node-insert-section :around    #'org-node-fakeroam--run-without-fontifying)
-        (advice-add
-         'org-roam-preview-get-contents :override #'org-node-fakeroam--accelerate-get-contents)
-        (advice-add
-         'org-roam-buffer-render-contents :after  #'org-node-fakeroam--clean-work-buffers))
-    (cancel-timer org-node-fakeroam--persistence-timer)
-    (setq org-node-fakeroam--did-setup-persistence nil)
-    (advice-remove 'org-roam-buffer-render-contents #'org-node-fakeroam--try-setup-persistence)
-    (advice-remove 'org-roam-node-insert-section    #'org-node-fakeroam--run-without-fontifying)
-    (advice-remove 'org-roam-preview-get-contents   #'org-node-fakeroam--accelerate-get-contents)
-    (advice-remove 'org-roam-buffer-render-contents #'org-node-fakeroam--clean-work-buffers)))
+        (advice-add 'org-roam-buffer-render-contents :before #'org-node-fakeroam--fast-render-try-start-persist)
+        (advice-add 'org-roam-node-insert-section :around    #'org-node-fakeroam--fast-render-inhibit-fontifying)
+        (advice-add 'org-roam-preview-get-contents :override #'org-node-fakeroam--fast-render-get-contents)
+        (advice-add 'org-roam-buffer-render-contents :after  #'org-node-fakeroam--fast-render-clean-buffers))
+    (cancel-timer org-node-fakeroam--fast-render-persist-timer)
+    (setq org-node-fakeroam--fast-render-did-start-persist nil)
+    (advice-remove 'org-roam-buffer-render-contents #'org-node-fakeroam--fast-render-try-start-persist)
+    (advice-remove 'org-roam-node-insert-section    #'org-node-fakeroam--fast-render-inhibit-fontifying)
+    (advice-remove 'org-roam-preview-get-contents   #'org-node-fakeroam--fast-render-get-contents)
+    (advice-remove 'org-roam-buffer-render-contents #'org-node-fakeroam--fast-render-clean-buffers)))
 
-(defun org-node-fakeroam--clean-work-buffers (&rest _)
-  "Wipe `org-node-fakeroam--file-buffers'."
-  (while-let ((buf (pop org-node-fakeroam--file-buffers)))
+(defun org-node-fakeroam--fast-render-clean-buffers (&rest _)
+  "Wipe `org-node-fakeroam--work-buffers'."
+  (while-let ((buf (pop org-node-fakeroam--work-buffers)))
     (kill-buffer buf)))
 
-(defvar org-node-fakeroam--src-roam-node nil)
-(defun org-node-fakeroam--run-without-fontifying (orig-fn &rest args)
+(defvar org-node-fakeroam--fast-render-src-roam-node nil)
+(defun org-node-fakeroam--fast-render-inhibit-fontifying (orig-fn &rest args)
   "Intended as around-advice for `org-roam-node-insert-section'.
 
-1. Inspect ARGS for its SOURCE-NODE argument and store
-   it in the variable `org-node-fakeroam--src-roam-node'.
+Run ORIG-FN with ARGS, while overriding
+`org-roam-fontify-like-in-org-mode' so it does nothing.
 
-2. Run ORIG-FN with ARGS, while overriding
-   `org-roam-fontify-like-in-org-mode' so it does nothing."
-  (setq org-node-fakeroam--src-roam-node (plist-get args :source-node))
+While we\\='re at it, inspect ARGS for its SOURCE-NODE argument and
+store it in the variable `org-node-fakeroam--fast-render-src-roam-node'."
+  (setq org-node-fakeroam--fast-render-src-roam-node (plist-get args :source-node))
   (cl-letf (((symbol-function 'org-roam-fontify-like-in-org-mode) #'identity))
     (apply orig-fn args)))
 
-(defun org-node-fakeroam--accelerate-get-contents (file pt)
+(defun org-node-fakeroam--fast-render-get-contents (file pt)
   "Designed as override for `org-roam-preview-get-contents'.
-In FILE, get a preview snippet at position PT, determined by
-`org-roam-preview-function'.
+In FILE, get a preview snippet at position PT, letting
+`org-roam-preview-function' determine contents of snippet.
 
 Normally the first time you open a Roam buffer, Emacs hangs for as long
-as a minute on a slow machine when many or huge files are involved.
-This advice may eliminate most of that.
+as a minute on a slow machine when huge files are involved, due to
+having to fontify the entire contents in a hidden buffer.  This tries to
+do that faster, which may eliminate much of the problem.
 
-Aside from huge files, it is also slow when there are backlinks
-coming from from extremely many files.  To deal with that, this
-caches all results so that it should only be slow the first time."
-  (unless org-node-fakeroam--src-roam-node
+Aside from huge files, it is also slow when there are backlinks coming
+from extremely many sources.  To deal with that:
+
+1. this reuses buffers if several backlinks originate from the same file
+2. even if all originate from different files, this caches all snippets
+   so that it should only be slow the first time."
+  (unless org-node-fakeroam--fast-render-src-roam-node
     (error "org-node-fakeroam: No SOURCE-NODE passed"))
-  (let* ((src-id (org-roam-node-id org-node-fakeroam--src-roam-node))
+  (let* ((src-id (org-roam-node-id org-node-fakeroam--fast-render-src-roam-node))
          (src-node (gethash src-id org-node--id<>node))
          (pos-diff (if src-node
                        (- pt (org-node-get-pos src-node))
@@ -334,36 +334,41 @@ caches all results so that it should only be slow the first time."
          (let ((org-inhibit-startup t)
                (org-element-cache-persistent nil)
                s)
-           (with-current-buffer (org-node-fakeroam--file-buffer file)
+           (with-current-buffer (org-node-fakeroam--work-buffer-for file)
              (goto-char pt)
              (cl-letf (((symbol-function 'org-back-to-heading-or-point-min)
                         #'org-node-fakeroam--back-to-heading-or-point-min))
                (setq s (funcall org-roam-preview-function))
                (dolist (fn org-roam-preview-postprocess-functions)
                  (setq s (funcall fn s)))))
-           (with-current-buffer (org-node-fakeroam--work-buffer)
+           (with-current-buffer (org-node-fakeroam--general-work-buffer)
              (erase-buffer)
              (insert s)
              (font-lock-ensure)
              (buffer-string)))))))
 
-(defun org-node-fakeroam--work-buffer ()
-  "Persistent temp buffer in which `org-mode' is enabled."
+(defun org-node-fakeroam--general-work-buffer ()
+  "Get or create a buffer in which `org-mode' is enabled.
+
+Like a temp buffer, but never killed, so you should probably use
+`erase-buffer' in case it already contains text."
   (or (get-buffer " *fakeroam-work*")
       (with-current-buffer (get-buffer-create " *fakeroam-work*" t)
         (delay-mode-hooks (org-mode))
         (current-buffer))))
 
-(defvar org-node-fakeroam--file-buffers nil)
-(defun org-node-fakeroam--file-buffer (file)
-  "Semi-persistent temp buffer holding the content of FILE.
+(defvar org-node-fakeroam--work-buffers nil
+  "All buffers spawned by `org-node-fakeroam--work-buffer-for'.")
+
+(defun org-node-fakeroam--work-buffer-for (file)
+  "Get or create a buffer holding the content of FILE.
 
 Emulates `org-roam-with-temp-buffer', but the buffer is intended to
 exist until the org-roam buffer finishes rendering all backlinks."
   (let ((bufname (format " *fakeroam-%d*" (sxhash file))))
     (or (get-buffer bufname)
         (with-current-buffer (get-buffer-create bufname t)
-          (push (current-buffer) org-node-fakeroam--file-buffers)
+          (push (current-buffer) org-node-fakeroam--work-buffers)
           (delay-mode-hooks (org-mode))
           (insert-file-contents file)
           (setq-local default-directory (file-name-directory file))
