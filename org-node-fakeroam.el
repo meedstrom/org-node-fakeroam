@@ -19,7 +19,10 @@
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (compat "30") (org-node "1.7.0") (org-roam "2.2.2") (emacsql "4.0.3"))
+;; Package-Requires: ((emacs "28.1") (org-node "1.7.0") (compat "30") (org-roam "2.2.2") (emacsql "4.0.3"))
+
+;; NOTE: Looking for Package-Version?
+;;       Consult your package manager, or the Git tag.
 
 ;;; Commentary:
 
@@ -39,7 +42,7 @@
 
 (unless (fboundp 'org-node--tmpfile)
   (display-warning 'org-node-fakeroam
-                   "Fakeroam v1.5 depends on org-node v1.7.x"))
+                   "Fakeroam v1.5 depends on org-node v1.7+"))
 
 
 ;;;; Utils
@@ -123,11 +126,13 @@ the user invokes the command."
 ;; (advice-add 'toggle-window-dedicated :after #'org-node-fakeroam-dedicate-same)
 (defun org-node-fakeroam-dedicate-same (&rest args)
   "If window is dedicated, set org-roam buffer dedication as well.
+Do nothing if the window does not show an org-roam buffer.
+
 Designed as after-advice for Emacs 30 `toggle-window-dedicated'.
 
 Can also be after-advice on any function that toggles dedication.
 If that function operates on a window that is not the selected one, the
-first argument in ARGS should name the window."
+the window should be the first argument in ARGS."
   (let* ((wd (window-normalize-window
               (when (window-valid-p (car args)) (car args))))
          (buf (window-buffer wd)))

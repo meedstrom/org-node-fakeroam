@@ -30,6 +30,10 @@
 @detailmenu
 --- The Detailed Node Listing ---
 
+Getting started
+
+* Interop::
+
 Bonus setup
 
 * Speeding up the backlinks buffer::
@@ -60,27 +64,24 @@ Either way, @samp{org-node-cache-mode} must be enabled, and it's a good idea to 
 @node Getting started
 @chapter Getting started
 
-Mandatory: ensure that the underlying org-id system knows about the files org-roam knows about.  You'd think it would, but that isn't a given!  Do either of these two:
+Let's ensure that the underlying org-id system knows about the same files org-roam knows about.  You'd think it would, but that isn't a given!
 
-@enumerate
-@item
-Run @samp{M-x org-roam-update-org-id-locations} every now and then, or on an idle timer.
-
-@lisp
-(run-with-idle-timer 45 t #'org-roam-update-org-id-locations)
-@end lisp
-
-@item
-(Recommended) Edit the following setting so it includes your @samp{org-roam-directory}.  Supposing that is "~/org/", set this:
+There exists a command @samp{M-x org-roam-update-org-id-locations}, but it only snapshots org-roam's current state of information.  Better to edit the following setting so it includes your @samp{org-roam-directory}.  Supposing that is "~/org":
 
 @lisp
 (setq org-node-extra-id-dirs '("~/org/"))
 @end lisp
-@end enumerate
 
-Finally, run @samp{M-x org-node-reset} or just restart Emacs.
+Run @samp{M-x org-node-reset}, or restart Emacs.
 
-In addition, these settings help you feel at home trying out any org-node command:
+@menu
+* Interop::
+@end menu
+
+@node Interop
+@section Interop
+
+These settings help you feel at home trying any org-node command:
 
 @lisp
 (setq org-node-creation-fn #'org-node-fakeroam-new-via-roam-capture)
@@ -140,15 +141,15 @@ If you turn it off, you may want to enable the following mode.  The autosync mod
 Now for the magic trick.  Enable one @emph{or both} of the following modes.
 
 @lisp
-(org-node-fakeroam-db-feed-mode) ;; keep Roam DB up to date
 (org-node-fakeroam-jit-backlinks-mode) ;; skip DB for Roam buffer
+(org-node-fakeroam-db-feed-mode) ;; keep Roam DB up to date
 @end lisp
 
-What do they do?  The @strong{DB-Feed-Mode} keeps the org-roam DB up to date, by writing to it on save.  Use it if you have various Roam extensions that need the DB@.  It should be pretty fast, but still not ideal in large files.  (contributions welcome)
+What do they do?  First, the @strong{JIT-Backlinks-Mode} will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.
 
-If you do not need the DB, I recommend skipping this mode.  Then it will be good to delete the outdated @samp{org-roam.db} file, due to a Roam hack @uref{https://github.com/meedstrom/org-node#undoing-a-roam-hack, mentioned in the org-node README}.
+Second, the @strong{DB-Feed-Mode} keeps the org-roam DB up to date, by writing to it on save.  Use it if you have various Roam extensions that need the DB@.  It should be pretty fast, but still not ideal in large files.  (contributions welcome)
 
-The @strong{JIT-Backlinks-Mode} will generate backlinks for the Roam buffer out of org-node's tables, so that no DB is needed for this purpose.
+If you do not need the DB, I recommend skipping this last one.  Then it will be good to delete the outdated @samp{org-roam.db} file, due to a Roam hack @uref{https://github.com/meedstrom/org-node#undoing-a-roam-hack, mentioned in the org-node README}.
 
 @node Misc
 @section Misc
@@ -188,7 +189,7 @@ This is a place where I request contributions, since 6 seconds still seems a lot
 @node Tip On very slow filesystems
 @subsection Tip: On very slow filesystems
 
-I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam (@uref{https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819, 11 seconds} just to goto next daily!).  A Redditor also said Apple NFS is not ideal for Emacs.  Microsoft NTFS seems to have a reputation in Emacs country as well.
+I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam (@uref{https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819, 11 seconds} just to goto next daily!).  A Redditor also said Apple NFS is not ideal for Emacs.  Microsoft NTFS seems to have a reputation as well on /r/emacs.
 
 Good news.  You can override some functions to make them look up org-node tables and avoid the filesystem:
 
