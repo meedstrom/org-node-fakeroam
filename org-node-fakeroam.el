@@ -19,7 +19,7 @@
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (org-node "1.7.0") (compat "30") (org-roam "2.2.2") (emacsql "4.0.3"))
+;; Package-Requires: ((emacs "28.1") (org-node "1.9.0") (compat "30") (org-roam "2.2.2") (emacsql "4.0.3"))
 
 ;; NOTE: Looking for Package-Version?
 ;;       Consult your package manager, or the Git tag.
@@ -38,10 +38,11 @@
 (require 'org-roam-db)
 (require 'emacsql)
 (declare-function org-roam-dailies--capture "org-roam-dailies")
+(declare-function org-node-seq--add-item "org-node-seq")
 
-(unless (fboundp 'org-node--tmpfile)
+(unless (fboundp 'org-node-seq-dispatch)
   (display-warning 'org-node-fakeroam
-                   "Fakeroam v1.5 depends on org-node v1.7+"))
+                   "Fakeroam v1.6 depends on org-node v1.9+"))
 
 
 ;;;; Utils
@@ -150,10 +151,6 @@ the window should be the first argument in ARGS."
 
 
 ;;;; Fast Render Mode
-
-(define-obsolete-variable-alias
-  'org-node-fakeroam-persist-previews 'org-node-fakeroam-fast-render-persist
-  "2024-10-26")
 
 (defcustom org-node-fakeroam-fast-render-persist nil
   "Whether to sync backlink previews to disk.
@@ -860,41 +857,42 @@ allows variable `buffer-file-name' to be a symlink."
 
 ;; TODO: Somehow make `org-node-fakeroam-new-via-roam-capture' able to do this?
 ;;;###autoload
-(defun org-node-fakeroam-daily-create (ymd series-key &optional goto keys)
+(defun org-node-fakeroam-daily-create (ymd seq-key &optional goto keys)
   "Create a daily-note, for a day implied by YMD.
 YMD must be a time string in YYYY-MM-DD form.
 
-SERIES-KEY is the key that corresponds to the member of
-`org-node-series-defs' that should grow after the capture is
-done.
+SEQ-KEY is the key that corresponds to the member of `org-node-seq-defs'
+that should grow with the captured item after the capture is done.
 
-GOTO and KEYS are like in `org-roam-dailies--capture'."
+GOTO and KEYS like in `org-roam-dailies--capture'."
   (require 'org-roam-dailies)
-  (add-hook 'org-roam-capture-new-node-hook #'org-node--add-series-item 90)
-  (setq org-node-proposed-series-key series-key)
+  (add-hook 'org-roam-capture-new-node-hook #'org-node-seq--add-item 90)
+  (setq org-node-proposed-sequence seq-key)
   (unwind-protect
       (org-roam-dailies--capture
        (encode-time
         (parse-time-string (concat ymd (format-time-string " %T %z"))))
        goto keys)
-    (remove-hook 'org-roam-capture-new-node-hook #'org-node--add-series-item)
-    (setq org-node-proposed-series-key nil)))
+    (remove-hook 'org-roam-capture-new-node-hook #'org-node-seq--add-item)
+    (setq org-node-proposed-sequence nil)))
 
 
 ;;;; Obsolete
 
 (org-node-changes--def-whiny-alias 'org-node-new-via-roam-capture
                                    'org-node-fakeroam-new-via-roam-capture
-                                   "2024-09-17" nil "2024 November 30")
+                                   "2024-09-17" nil "November 30")
 
 (org-node-changes--def-whiny-alias 'org-node-slugify-like-roam-actual
                                    'org-node-fakeroam-slugify-via-roam
-                                   "2024-09-17" nil "2024 November 30")
+                                   "2024-09-17" nil "November 30")
 
-(define-obsolete-function-alias
-  'org-node-fakeroam-show-roam-buffer
-  'org-node-fakeroam-show-buffer
-  "2024-10-19")
+(org-node-changes--def-whiny-alias 'org-node-fakeroam-show-roam-buffer
+                                   'org-node-fakeroam-show-buffer
+                                   "2024-10-19" nil "November 30")
+
+(fset 'org-node-fakeroam-enable-persist 'org-node-fakeroam-setup-persistence)
+(fset  'org-node-fakeroam-setup-persist 'org-node-fakeroam-setup-persistence)
 
 (defun org-node-fakeroam-setup-persistence ()
   "Set `org-node-fakeroam-fast-render-persist' to t.
@@ -902,11 +900,15 @@ GOTO and KEYS are like in `org-roam-dailies--capture'."
 Will be removed eventually.  Configure that variable instead."
   (declare (obsolete nil "2024-10-19"))
   (setq org-node-fakeroam-fast-render-persist t)
-  (message
-   "Configure `org-node-fakeroam-fast-render-persist' instead of calling obsolete `org-node-fakeroam-setup-persistence'"))
+  ;; Changed from message to display-warning on 2024-11-18 (with v1.6).
+  (display-warning 'org-node-fakeroam
+                   "Psst! Set variable `org-node-fakeroam-fast-render-persist' in initfiles, instead of calling obsolete `org-node-fakeroam-setup-persistence'"))
 
-(fset 'org-node-fakeroam-setup-persist #'org-node-fakeroam-setup-persistence)
-(fset 'org-node-fakeroam-enable-persist #'org-node-fakeroam-setup-persistence)
+;; Obsolete 2024-10-17, whiny 2024-11-18
+(push '(org-node-fakeroam-persist-previews
+        org-node-fakeroam-fast-render-persist
+        "30 December 2024")
+      org-node-changes--new-names)
 
 (provide 'org-node-fakeroam)
 

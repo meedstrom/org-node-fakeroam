@@ -108,7 +108,7 @@ Enable this mode:
 (org-node-fakeroam-fast-render-mode) ;; build the Roam buffer faster
 @end lisp
 
-Optionally, you can further improve the experience by persisting on disk all the preview snippets, instead of only in the current Emacs session.
+Optionally, you can further improve the experience by persisting on disk all the preview snippets.
 
 @lisp
 (setq org-node-fakeroam-fast-render-persist t)
@@ -162,7 +162,7 @@ If you do not need the DB, I recommend skipping this last one.  Then it will be 
 @node Tip Rebuilding the Roam DB
 @subsection Tip: Rebuilding the Roam DB
 
-If you often have reason to full-reset the DB, there is a faster command than @samp{C-u M-x org-roam-db-sync}.  Try @samp{M-x org-node-fakeroam-db-rebuild}.  Benchmark on my device:
+If you often have reason to full-reset the DB, there is a faster command.  Benchmark on my device:
 
 @itemize
 @item
@@ -189,7 +189,7 @@ This is a place where I request contributions, since 6 seconds still seems a lot
 @node Tip On very slow filesystems
 @subsection Tip: On very slow filesystems
 
-I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam (@uref{https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819, 11 seconds} just to goto next daily!).  A Redditor also said Apple NFS is not ideal for Emacs.  Microsoft NTFS seems to have a reputation as well on /r/emacs.
+I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam (@uref{https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819, 11 seconds} just to goto next daily!).
 
 Good news.  You can override some functions to make them look up org-node tables and avoid the filesystem:
 
