@@ -691,8 +691,7 @@ instance\\='s copy."
 (defun org-node-fakeroam--db-add-file-level-data (node)
   "Send metadata about the file where NODE is located."
   (let* ((file (org-node-get-file-path node))
-         (lisp-mtime (seconds-to-time
-                      (car (gethash file org-node--file<>mtime)))))
+         (lisp-mtime (seconds-to-time (gethash file org-node--file<>mtime))))
     ;; See `org-roam-db-insert-file'
     (org-roam-db-query [:insert :into files :values $v1]
                        (vector file
