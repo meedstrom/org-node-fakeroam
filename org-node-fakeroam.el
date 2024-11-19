@@ -73,7 +73,7 @@ function only exists in case you had patched the definition of
   (org-roam-node-slug (org-roam-node-create :title title)))
 
 
-;;;; Org-roam buffer bonus commands
+;;;; Bonus commands
 
 ;;;###autoload
 (define-minor-mode org-node-fakeroam-redisplay-mode
@@ -692,7 +692,7 @@ instance\\='s copy."
   "Send metadata about the file where NODE is located."
   (let* ((file (org-node-get-file-path node))
          (lisp-mtime (seconds-to-time
-                      (car (gethash file org-node--file<>mtime.elapsed)))))
+                      (car (gethash file org-node--file<>mtime)))))
     ;; See `org-roam-db-insert-file'
     (org-roam-db-query [:insert :into files :values $v1]
                        (vector file
