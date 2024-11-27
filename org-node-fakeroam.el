@@ -616,6 +616,7 @@ being handled by several open EmacSQL connections.
 
 This function lets the newest copy overwrite the current
 instance\\='s copy."
+  (mkdir (org-node--tmpfile) t)
   (let ((locs (cl-loop for file in (directory-files (org-node--tmpfile)
                                                     t "org-roam" t)
                        when (string-suffix-p ".db" file)
