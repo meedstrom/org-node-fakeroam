@@ -599,10 +599,28 @@ This function lets the temporary copy overwrite the original."
                                      org-node-fakeroam--orig-db-loc))
     (copy-file org-roam-db-location org-node-fakeroam--orig-db-loc t)))
 
+;; Transitional
+(defun org-node-fakeroam--tmpfile (&optional basename &rest args)
+  "Return a path that puts BASENAME in a temporary directory.
+As a nicety, `format' BASENAME with ARGS too.
+
+Unlike `make-temp-file', do not add characters.
+
+On most systems, the resulting string will be
+/tmp/org-node/BASENAME, but it depends on
+OS and variable `temporary-file-directory'."
+  ;; Just in case anyone runs into issue #72.
+  ;; https://github.com/meedstrom/org-node/issues/72
+  (mkdir (file-name-concat temporary-file-directory "org-node")
+         t)
+  (file-name-concat temporary-file-directory
+                    "org-node"
+                    (when basename (apply #'format basename args))))
+
 (defun org-node-fakeroam--mk-uniq-db-loc ()
   "Return a temporary file ending in .db that does not yet exist."
   (let (path (ctr 0))
-    (while (file-exists-p (setq path (org-node--tmpfile
+    (while (file-exists-p (setq path (org-node-fakeroam--tmpfile
                                       "org-roam.%d.db" (cl-incf ctr)))))
     path))
 
@@ -616,8 +634,8 @@ being handled by several open EmacSQL connections.
 
 This function lets the newest copy overwrite the current
 instance\\='s copy."
-  (mkdir (org-node--tmpfile) t)
-  (let ((locs (cl-loop for file in (directory-files (org-node--tmpfile)
+  (mkdir (org-node-fakeroam--tmpfile) t)
+  (let ((locs (cl-loop for file in (directory-files (org-node-fakeroam--tmpfile)
                                                     t "org-roam" t)
                        when (string-suffix-p ".db" file)
                        collect file)))
