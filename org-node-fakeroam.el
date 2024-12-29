@@ -19,7 +19,7 @@
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (org-node "1.9.0") (compat "30") (org-roam "2.2.2") (emacsql "4.0.3"))
+;; Package-Requires: ((emacs "28.1") (org-node "1.9.17") (compat "30") (org-roam "2.2.2") (emacsql "4.0.3"))
 
 ;; NOTE: Looking for Package-Version?
 ;;       Consult your package manager, or the Git tag.
@@ -42,7 +42,7 @@
 
 (unless (fboundp 'org-node-seq-dispatch)
   (display-warning 'org-node-fakeroam
-                   "Fakeroam v1.6 depends on org-node v1.9+"))
+                   "Fakeroam v1.7 depends on org-node v1.9+"))
 
 
 ;;;; Utils
