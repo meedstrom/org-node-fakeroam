@@ -908,48 +908,6 @@ GOTO and KEYS like in `org-roam-dailies--capture'."
     (remove-hook 'org-roam-capture-new-node-hook #'org-node-seq--add-item)
     (setq org-node-proposed-sequence nil)))
 
-
-;;;; Obsolete
-
-(org-node-changes--def-whiny-alias 'org-node-new-via-roam-capture
-                                   'org-node-fakeroam-new-via-roam-capture
-                                   "2024-09-17" nil "30 November")
-
-(org-node-changes--def-whiny-alias 'org-node-slugify-like-roam-actual
-                                   'org-node-fakeroam-slugify-via-roam
-                                   "2024-09-17" nil "30 November")
-
-(org-node-changes--def-whiny-alias 'org-node-fakeroam-show-roam-buffer
-                                   'org-node-fakeroam-show-buffer
-                                   "2024-10-19" nil "30 November")
-
-(fset 'org-node-fakeroam-enable-persist 'org-node-fakeroam-setup-persistence)
-(fset  'org-node-fakeroam-setup-persist 'org-node-fakeroam-setup-persistence)
-
-(defun org-node-fakeroam-setup-persistence ()
-  "Set `org-node-fakeroam-fast-render-persist' to t.
-
-Will be removed eventually.  Configure that variable instead."
-  (declare (obsolete nil "2024-10-19"))
-  (setq org-node-fakeroam-fast-render-persist t)
-  ;; Changed from message to display-warning on 2024-11-18 (with v1.6).
-  (display-warning 'org-node-fakeroam
-                   "Psst! Set variable `org-node-fakeroam-fast-render-persist' in initfiles, instead of calling obsolete `org-node-fakeroam-setup-persistence'"))
-
-;; Obsolete 2024-10-17, whiny 2024-11-18
-(push '(org-node-fakeroam-persist-previews
-        org-node-fakeroam-fast-render-persist
-        "30 December 2024")
-      org-node-changes--new-names)
-
-;; 2024-11-19 Cleanup file at deprecated location
-(let ((old (or (bound-and-true-p org-node-fakeroam-previews-file)
-               (when (bound-and-true-p no-littering-var-directory)
-                 (file-name-concat no-littering-var-directory
-                                   "org-node-fakeroam-cached-previews.eld")))))
-  (when (and old (file-exists-p old))
-    (ignore-errors (delete-file old))))
-
 (provide 'org-node-fakeroam)
 
 ;;; org-node-fakeroam.el ends here
