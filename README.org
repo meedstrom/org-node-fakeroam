@@ -4,7 +4,7 @@
 #+LANGUAGE: en
 #+STARTUP: content
 #+TEXINFO_DIR_CATEGORY: Emacs
-#+TEXINFO_DIR_TITLE: Org-node Fakeroam: (org-node-fakeroam).
+#+TEXINFO_DIR_TITLE: Org-node-fakeroam: (org-node-fakeroam).
 #+TEXINFO_DIR_DESC: Integrate org-roam with org-node.
 #+EXPORT_FILE_NAME: org-node-fakeroam
 #+HTML: <a href="https://melpa.org/#/org-node-fakeroam"><img alt="MELPA" src="https://melpa.org/packages/org-node-fakeroam-badge.svg"/></a> <a href="https://stable.melpa.org/#/org-node-fakeroam"><img alt="MELPA Stable" src="https://stable.melpa.org/packages/org-node-fakeroam-badge.svg"/></a>

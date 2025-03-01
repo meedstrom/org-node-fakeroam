@@ -36,13 +36,18 @@
 (require 'org-node-changes)
 (require 'org-roam)
 (require 'org-roam-db)
+(require 'compat)
 (require 'emacsql)
 (declare-function org-roam-dailies--capture "org-roam-dailies")
 (declare-function org-node-seq--add-item "org-node-seq")
 
 (unless (fboundp 'org-node-seq-dispatch)
   (display-warning 'org-node-fakeroam
-                   "Fakeroam v1.7 depends on org-node v1.9+"))
+                   "org-node-fakeroam v1.7 depends on org-node v1.9+"))
+
+(unless (fboundp 'get-truename-buffer)
+  (display-warning
+   'org-node-fakeroam "Update compat.el to use this version of org-node-fakeroam"))
 
 
 ;;;; Utils
@@ -100,6 +105,7 @@ See also `org-node-fakeroam-fast-render-mode'.
         (with-current-buffer buf
           (remove-hook 'post-command-hook #'org-roam-buffer--redisplay-h t))))))
 
+;;;###autoload
 (defun org-node-fakeroam-show-buffer ()
   "Display an org-roam buffer xor refresh an already visible one.
 
