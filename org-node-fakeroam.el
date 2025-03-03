@@ -32,6 +32,7 @@
 
 (require 'cl-lib)
 (require 'ol)
+(require 'org-macs)
 (require 'org-node)
 (require 'org-node-changes)
 (require 'org-roam)
@@ -41,9 +42,13 @@
 (declare-function org-roam-dailies--capture "org-roam-dailies")
 (declare-function org-node-seq--add-item "org-node-seq")
 
+(when (fboundp 'org-node-context-toggle)
+  (display-warning 'org-node-fakeroam
+                   "org-node-fakeroam needs upgrade to be compatible with org-node v2.0"))
+
 (unless (fboundp 'org-node-seq-dispatch)
   (display-warning 'org-node-fakeroam
-                   "org-node-fakeroam v1.7 depends on org-node v1.9+"))
+                   "org-node-fakeroam v1.7 depends on org-node v1.9"))
 
 (unless (fboundp 'get-truename-buffer)
   (display-warning
@@ -70,10 +75,10 @@ time some necessary variables are set."
 
 ;;;###autoload
 (defun org-node-fakeroam-slugify-via-roam (title)
-  "From TITLE, make a filename slug, using Roam code to do it.
+  "From TITLE, make a filename slug, using org-roam code to do it.
 
-See also the equivalent `org-node-slugify-like-roam-default'.  This
-function only exists in case you had patched the definition of
+See also the normally equivalent `org-node-slugify-like-roam-default'.
+This function only exists in case you had patched the definition of
 `org-roam-node-slug' and want to continue using your custom definition."
   (org-roam-node-slug (org-roam-node-create :title title)))
 
@@ -434,7 +439,7 @@ not need it for other things.
 (defun org-node-fakeroam--mk-node (node)
   "Make an org-roam-node object from org-node object NODE."
   (org-roam-node-create
-   :file (org-node-get-file-path node)
+   :file (org-node-get-file node)
    :id (org-node-get-id node)
    :olp (org-node-get-olp node)
    :scheduled (when-let ((scheduled (org-node-get-scheduled node)))
@@ -448,7 +453,7 @@ not need it for other things.
    :level (org-node-get-level node)
    :title (org-node-get-title node)
    :file-title (org-node-get-file-title-or-basename node)
-   :tags (org-node-get-tags-with-inheritance node)
+   :tags (org-node-get-tags node)
    :aliases (org-node-get-aliases node)
    :todo (org-node-get-todo node)
    :refs (org-node-get-refs node)
@@ -553,11 +558,10 @@ active, and intermittently merge the temporary file with the original.
 Modify the ARGS plist so that the third key, :properties, has a
 value that looks like \(:outline OUTLINE-PATH-TO-THE-NODE).
 
-This info is trivial to reconstruct from the first key, :source-node,
-hence `org-node-fakeroam-db-feed-mode' not including it with the link
-metadata sent to the DB.  Such pre-construction would cost more compute
-\(produce garbage), as it has to be done for every link inside the
-buffer being saved."
+This info is normally excluded from the metadata sent to the DB by
+`org-node-fakeroam-db-feed-mode', because it is trivial to reconstruct
+in ad-hoc fashion, as we do here.  To construct it in advance would add
+GC churn each time a large file is saved."
   (unless org-node-fakeroam-jit-backlinks-mode ;; Not needed if that is enabled
     (let ((roam-node (plist-get args :source-node)))
       (setf (plist-get args :properties)
@@ -671,7 +675,7 @@ instance\\='s copy."
           (max (hash-table-count org-nodes))
           (already (make-hash-table :test #'equal)))
       (cl-loop for node being the hash-values of org-nodes
-               as file = (org-node-get-file-path node)
+               as file = (org-node-get-file node)
                do (when (= 0 (% (cl-incf ctr)
                                 (cond ((> ctr 200) 100)
                                       ((> ctr 20) 10)
@@ -700,7 +704,7 @@ instance\\='s copy."
     (let (already)
       (cl-loop
        for node being each hash-value of org-node--id<>node
-       as file = (org-node-get-file-path node)
+       as file = (org-node-get-file node)
        when (member file files) do
        (unless (member file already)
          (push file already)
@@ -715,7 +719,7 @@ instance\\='s copy."
 
 (defun org-node-fakeroam--db-add-file-level-data (node)
   "Send metadata about the file where NODE is located."
-  (let* ((file (org-node-get-file-path node))
+  (let* ((file (org-node-get-file node))
          (lisp-mtime (seconds-to-time (gethash file org-node--file<>mtime))))
     ;; See `org-roam-db-insert-file'
     (org-roam-db-query [:insert :into files :values $v1]
@@ -730,8 +734,8 @@ instance\\='s copy."
 This includes all links and citations that touch NODE."
   (cl-symbol-macrolet ;; PERF: 20% faster rebuild, than with `let'
       ((id         (org-node-get-id node))
-       (file-path  (org-node-get-file-path node))
-       (tags       (org-node-get-tags-with-inheritance node))
+       (file-path  (org-node-get-file node))
+       (tags       (org-node-get-tags node))
        (aliases    (org-node-get-aliases node))
        (roam-refs  (org-node-get-refs node))
        (title      (org-node-get-title node))
@@ -782,8 +786,8 @@ This includes all links and citations that touch NODE."
                              (vector id ref "cite")))))
 
     (let ((dummy-properties '(:outline nil)))
-      (dolist (link (nconc (org-node-get-id-links-to node)
-                           (org-node-get-reflinks-to node)))
+      (dolist (link (append (org-node-get-id-links-to node)
+                            (org-node-get-reflinks-to node)))
         (if (org-node-link-type link)
             ;; See `org-roam-db-insert-link'
             (org-roam-db-query [:insert :into links :values $v1]
