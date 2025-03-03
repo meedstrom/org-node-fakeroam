@@ -19,7 +19,7 @@
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (org-node "1.9.17") (compat "30") (org-roam "2.2.2") (emacsql "4.0.3"))
+;; Package-Requires: ((emacs "28.1") (org-node "2.0.0") (compat "30") (org-roam "2.2.2") (emacsql "4.0.3"))
 
 ;; NOTE: Looking for Package-Version?
 ;;       Consult your package manager, or the Git tag.
@@ -42,9 +42,9 @@
 (declare-function org-roam-dailies--capture "org-roam-dailies")
 (declare-function org-node-seq--add-item "org-node-seq")
 
-(when (fboundp 'org-node-context-toggle)
+(unless (fboundp 'org-node-context-toggle)
   (display-warning 'org-node-fakeroam
-                   "org-node-fakeroam needs upgrade to be compatible with org-node v2.0"))
+                   "org-node-fakeroam v2.0 depends on org-node v2.0"))
 
 (unless (fboundp 'org-node-seq-dispatch)
   (display-warning 'org-node-fakeroam
@@ -168,19 +168,13 @@ the window should be the first argument in ARGS."
 
 Only meaningful with `org-node-fakeroam-fast-render-mode' active.
 
-The previews are cached in a file under `org-node-fakeroam-data-dir'."
+The previews are cached in a file under `org-node-data-dir'."
   :type 'boolean)
-
-(defcustom org-node-fakeroam-data-dir user-emacs-directory
-  "Directory in which to persist data between sessions.
-Currently only used by `org-node-fakeroam-fast-render-persist'."
-  :type `(choice (const :value ,user-emacs-directory)
-                 directory))
 
 (defun org-node-fakeroam--fast-render-persist-file ()
   "Return path to file storing persisted previews."
-  (mkdir org-node-fakeroam-data-dir t)
-  (file-name-concat org-node-fakeroam-data-dir
+  (mkdir org-node-data-dir t)
+  (file-name-concat org-node-data-dir
                     "org-node-fakeroam-fast-render-previews.eld"))
 
 (defvar org-node-fakeroam--id<>previews (make-hash-table :test #'equal)
@@ -226,8 +220,8 @@ the heading that has said ID, and TEXT is an output of
     (maphash
      (lambda (_ links)
        (dolist (link links)
-         (push (org-node-link-pos link)
-               (gethash (org-node-link-origin link) valid-positions))))
+         (push (plist-get link :pos)
+               (gethash (plist-get link :origin) valid-positions))))
      org-node--dest<>links)
     (maphash
      (lambda (id previews)
@@ -468,13 +462,13 @@ Designed to override `org-roam-backlinks-get'."
          (links (gethash target-id org-node--dest<>links)))
     (cl-loop
      for link in links
-     as src-id = (org-node-link-origin link)
+     as src-id = (plist-get link :origin)
      as src-node = (gethash src-id org-node--id<>node)
      when src-node
      collect (org-roam-backlink-create
               :target-node target-roam-node
               :source-node (org-node-fakeroam--mk-node src-node)
-              :point (org-node-link-pos link)
+              :point (plist-get link :pos)
               :properties
               (list :outline
                     (append (org-node-get-olp src-node)
@@ -490,13 +484,13 @@ Designed to override `org-roam-reflinks-get'."
        for ref in (org-node-get-refs node)
        append (cl-loop
                for link in (gethash ref org-node--dest<>links)
-               as src-id = (org-node-link-origin link)
+               as src-id = (plist-get link :origin)
                as src-node = (gethash src-id org-node--id<>node)
                when src-node
                collect (org-roam-reflink-create
-                        :ref (org-node-link-dest link)
+                        :ref (plist-get link :dest)
                         :source-node (org-node-fakeroam--mk-node src-node)
-                        :point (org-node-link-pos link)
+                        :point (plist-get link :pos)
                         :properties
                         (list :outline
                               (append (org-node-get-olp src-node)
@@ -788,19 +782,19 @@ This includes all links and citations that touch NODE."
     (let ((dummy-properties '(:outline nil)))
       (dolist (link (append (org-node-get-id-links-to node)
                             (org-node-get-reflinks-to node)))
-        (if (org-node-link-type link)
+        (if (plist-get link :type)
             ;; See `org-roam-db-insert-link'
             (org-roam-db-query [:insert :into links :values $v1]
-                               (vector (org-node-link-pos link)
-                                       (org-node-link-origin link)
-                                       (org-node-link-dest link)
-                                       (org-node-link-type link)
+                               (vector (plist-get link :pos)
+                                       (plist-get link :origin)
+                                       (plist-get link :dest)
+                                       (plist-get link :type)
                                        dummy-properties))
           ;; See `org-roam-db-insert-citation'
           (org-roam-db-query [:insert :into citations :values $v1]
-                             (vector (org-node-link-origin link)
-                                     (org-node-link-dest link)
-                                     (org-node-link-pos link)
+                             (vector (plist-get link :origin)
+                                     (plist-get link :dest)
+                                     (plist-get link :pos)
                                      dummy-properties)))))))
 
 
