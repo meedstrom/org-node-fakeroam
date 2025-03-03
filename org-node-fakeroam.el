@@ -1,6 +1,6 @@
 ;;; org-node-fakeroam.el --- Stand-ins for org-roam-autosync-mode -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024 Martin Edström
+;; Copyright (C) 2024, 2025 Martin Edström
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 ;; Created:          2024-04-13
 ;; Keywords:         org, hypermedia
 ;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (org-node "2.0.0") (compat "30") (org-roam "2.2.2") (emacsql "4.0.3"))
+;; Package-Requires: ((emacs "28.1") (compat "30") (emacsql "4.0.3") (org-node "2.0.0") (org-roam "2.2.2"))
 
 ;; NOTE: Looking for Package-Version?
 ;;       Consult your package manager, or the Git tag.
