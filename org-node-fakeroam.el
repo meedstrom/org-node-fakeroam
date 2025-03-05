@@ -1,6 +1,6 @@
 ;;; org-node-fakeroam.el --- Stand-ins for org-roam-autosync-mode -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024, 2025 Martin Edström
+;; Copyright (C) 2024-2025 Martin Edström
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -15,14 +15,18 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-;; Author:           Martin Edström <meedstrom91@gmail.com>
-;; Created:          2024-04-13
-;; Keywords:         org, hypermedia
-;; URL:              https://github.com/meedstrom/org-node-fakeroam
-;; Package-Requires: ((emacs "28.1") (compat "30") (emacsql "4.0.3") (org-node "2.0.0") (org-roam "2.2.2"))
+;; Author:   Martin Edström <meedstrom91@gmail.com>
+;; URL:      https://github.com/meedstrom/org-node-fakeroam
+;; Created:  2024-04-13
+;; Keywords: org, hypermedia
+;; Package-Requires: ((emacs "28.1")
+;;                    (compat "30")
+;;                    (emacsql "4.0.3")
+;;                    (org-node "2.0.3")
+;;                    (org-roam "2.2.2"))
 
-;; NOTE: Looking for Package-Version?
-;;       Consult your package manager, or the Git tag.
+;; NOTE: Looking for Package-Version?  Consult the Git tag.
+;;       For reference, 2.0.0 was released on 20250303, i.e. March 3.
 
 ;;; Commentary:
 
@@ -566,15 +570,15 @@ GC churn each time a large file is saved."
 
 ;; REASONABLE USER STORY:
 
-;; - User uses db-feed-mode
+;; - User uses org-node-fakeroam-db-feed-mode
 ;; - User edits notes in multiple Emacs instances
-;; - User powercycles the computer, skipping `kill-emacs-hook'
+;; - User powercycles the computer, so `kill-emacs-hook' does not run
 ;; - User starts fresh Emacs
 ;; - User expects an up-to-date DB
 
 ;; OUR ADDITIONAL REQUIREMENT:
 
-;; - Do not access same DB from multiple Emacs instances
+;; - Never access the same DB from multiple Emacs instances
 ;;   because it seems it can slow down SQL queries
 
 ;; SOLUTION:
@@ -903,14 +907,14 @@ that should grow with the captured item after the capture is done.
 GOTO and KEYS like in `org-roam-dailies--capture'."
   (require 'org-roam-dailies)
   (add-hook 'org-roam-capture-new-node-hook #'org-node-seq--add-item 90)
-  (setq org-node-proposed-sequence seq-key)
+  (setq org-node-proposed-seq seq-key)
   (unwind-protect
       (org-roam-dailies--capture
        (encode-time
         (parse-time-string (concat ymd (format-time-string " %T %z"))))
        goto keys)
     (remove-hook 'org-roam-capture-new-node-hook #'org-node-seq--add-item)
-    (setq org-node-proposed-sequence nil)))
+    (setq org-node-proposed-seq nil)))
 
 (provide 'org-node-fakeroam)
 
