@@ -204,13 +204,13 @@ the heading that has said ID, and TEXT is an output of
         ;; cl-assertion-failure.
         ;; Can't repro reliably, so not reporting the bug yet.
         ;; Solvable by just using `with-temp-file', but I want to find the bug.
-        (let ((file (org-node-fakeroam--fast-render-persist-file)))
+        (let ((file (org-node-fakeroam--fast-render-persist-file))
+              (print-length nil))
           (with-current-buffer (or (get-truename-buffer file)
                                    (get-file-buffer file)
                                    (current-buffer))
-            (write-region
-             (prin1-to-string org-node-fakeroam--id<>previews () '((length)))
-             () file () 'quiet))))
+            (write-region (prin1-to-string org-node-fakeroam--id<>previews)
+                          () file () 'quiet))))
     (cancel-timer org-node-fakeroam--persist-timer)
     (setq org-node-fakeroam--did-enable-persist nil)))
 
