@@ -529,6 +529,7 @@ active, and intermittently merge the temporary file with the original.
           (message "org-node-fakeroam: You probably want to set `org-roam-db-update-on-save' to nil"))
         (unless org-node-cache-mode
           (message "`org-node-fakeroam-db-feed-mode' will do nothing without `org-node-cache-mode'"))
+        (cl-assert (file-name-absolute-p org-roam-db-location))
         (setq org-node-fakeroam--orig-db-loc org-roam-db-location)
         (setq org-roam-db-location (org-node-fakeroam--mk-uniq-db-loc))
         (when (file-readable-p org-node-fakeroam--orig-db-loc)
