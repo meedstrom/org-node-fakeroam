@@ -440,11 +440,11 @@ not need it for other things.
    :file (org-node-get-file node)
    :id (org-node-get-id node)
    :olp (org-node-get-olp node)
-   :scheduled (when-let ((scheduled (org-node-get-scheduled node)))
+   :scheduled (when-let* ((scheduled (org-node-get-scheduled node)))
                 (format-time-string
                  "%FT%T%z"
                  (encode-time (org-parse-time-string scheduled))))
-   :deadline (when-let ((deadline (org-node-get-deadline node)))
+   :deadline (when-let* ((deadline (org-node-get-deadline node)))
                (format-time-string
                 "%FT%T%z"
                 (encode-time (org-parse-time-string deadline))))
@@ -675,12 +675,10 @@ instance\\='s copy."
           (already (make-hash-table :test #'equal)))
       (cl-loop for node being the hash-values of org-nodes
                as file = (org-node-get-file node)
-               do (when (= 0 (% (cl-incf ctr)
-                                (cond ((> ctr 200) 100)
-                                      ((> ctr 20) 10)
-                                      (t 1))))
-                    (message "Inserting into %s... %d/%d"
-                             org-roam-db-location ctr max))
+               do
+               (message "Inserting into %s... %d/%d (%s)"
+                        org-roam-db-location (cl-incf ctr) max
+                        (org-node-get-title node))
                (unless (gethash file already)
                  (puthash file t already)
                  (org-node-fakeroam--db-add-file-level-data node))
