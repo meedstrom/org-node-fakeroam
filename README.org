@@ -31,8 +31,8 @@ Run =M-x org-node-reset=, or restart Emacs.
 These settings help you feel at home trying any org-node command:
 
 #+begin_src elisp
-(setq org-node-creation-fn #'org-node-fakeroam-new-via-roam-capture)
-(setq org-node-slug-fn #'org-node-fakeroam-slugify-via-roam)
+(setq org-node-creation-fn #'org-node-new-via-roam-capture)
+(setq org-node-slug-fn #'org-node-slugify-like-roam-default)
 (setq org-node-datestamp-format "%Y%m%d%H%M%S-")
 #+end_src
 
