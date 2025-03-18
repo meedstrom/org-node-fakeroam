@@ -3,41 +3,45 @@
 #+EMAIL: meedstrom91@gmail.com
 #+LANGUAGE: en
 #+STARTUP: content
-#+TEXINFO_DIR_CATEGORY: Emacs
-#+TEXINFO_DIR_TITLE: Org-node-fakeroam: (org-node-fakeroam).
-#+TEXINFO_DIR_DESC: Integrate org-roam with org-node.
-#+EXPORT_FILE_NAME: org-node-fakeroam
-#+HTML: <a href="https://melpa.org/#/org-node-fakeroam"><img alt="MELPA" src="https://melpa.org/packages/org-node-fakeroam-badge.svg"/></a> <a href="https://stable.melpa.org/#/org-node-fakeroam"><img alt="MELPA Stable" src="https://stable.melpa.org/packages/org-node-fakeroam-badge.svg"/></a>
+* Deprecation notice
 
-* Intro
+While this package should still work, a lot of names are aliases since v3.
+
+It should be enough to get org-node and check out these built-ins:
+
+- =org-node-roam-accelerator-mode=
+- =org-mem-roamy-db-mode=
+
+* Old README
+** Intro
 This package can be used in one of two ways: purely to speed up some parts of org-roam, or to use it side-by-side with [[https://github.com/meedstrom/org-node][org-node]].
 
 Either way, =org-node-cache-mode= must be enabled, and it's a good idea to go through the following config.
 
-* Getting started
+** Getting started
 
 Let's ensure that the underlying org-id system knows about the same files org-roam knows about.  You'd think it would, but that isn't a given!
 
 There exists a command =M-x org-roam-update-org-id-locations=, but it only snapshots org-roam's current state of information.  Better to edit the following setting so it includes your =org-roam-directory=.  Supposing that is "~/org":
 
 #+begin_src elisp
-(setq org-node-extra-id-dirs '("~/org/"))
+(setq org-mem-watch-dirs '("~/org/"))
 #+end_src
 
-Run =M-x org-node-reset=, or restart Emacs.
+Run =M-x org-mem-reset=, or restart Emacs.
 
-** Interop
+*** Interop
 
 These settings help you feel at home trying any org-node command:
 
 #+begin_src elisp
-(setq org-node-creation-fn #'org-node-fakeroam-new-via-roam-capture)
-(setq org-node-slug-fn #'org-node-fakeroam-slugify-via-roam)
+(setq org-node-creation-fn #'org-node-new-via-roam-capture)
+(setq org-node-slug-fn #'org-node-slugify-like-roam-default)
 (setq org-node-datestamp-format "%Y%m%d%H%M%S-")
 #+end_src
 
-* Bonus setup
-** Speeding up the backlinks buffer
+** Bonus setup
+*** Speeding up the backlinks buffer
 
 Enable this mode:
 
@@ -57,7 +61,7 @@ You might think that this only matters to someone who often restarts Emacs, but 
 
 10ms instead of 100ms, because Emacs UI transitions have no [[https://www.100fps.com/how_many_frames_can_humans_see.htm][fluidity]].
 
-** Speeding up the org-roam DB
+*** Speeding up the org-roam DB
 
 If big files are slow to save, this section is for you.  We will turn off some org-roam stuff and instruct it to look up org-node tables.
 
@@ -91,8 +95,8 @@ Second, the *DB-Feed-Mode* keeps the org-roam DB up to date, by writing to it on
 
 If you do not need the DB, I recommend skipping this last one.  Then it will be good to delete the outdated =org-roam.db= file, due to a Roam hack [[https://github.com/meedstrom/org-node#undoing-a-roam-hack][mentioned in the org-node README]].
 
-** Misc
-*** Tip: A timestamp in property drawers?
+*** Misc
+**** Tip: A timestamp in property drawers?
 
 If you like that org-node's default behavior adds a property for creation-time, example =:CREATED: [2025-03-03 Mon 11:15]=, you can make org-roam do it too:
 
@@ -100,7 +104,7 @@ If you like that org-node's default behavior adds a property for creation-time, 
 (add-hook 'org-roam-capture-new-node-hook #'org-node-put-created)
 #+end_src
 
-*** Tip: Rebuilding the Roam DB
+**** Tip: Rebuilding the Roam DB
 If you often have reason to full-reset the DB, there is a faster command.  Benchmark on my device:
 
 - =C-u M-x org-roam-db-sync=: 179 seconds
@@ -117,7 +121,7 @@ I request help here, since 6 seconds still seems /a lot/ slower than it needs to
 
 The bottleneck seems to be in how EmacSQL is being called ([[https://github.com/org-roam/org-roam/issues/2474][org-roam#2474]] may shed light).
 
-*** Tip: On very slow filesystems
+**** Tip: On very slow filesystems
 
 I hear that on Termux on Android, filesystem access can be so slow that it's a pain to cycle dailies with org-roam ([[https://github.com/meedstrom/org-node/issues/24#issuecomment-2278605819][11 seconds]] just to goto next daily!).
 
@@ -134,10 +138,10 @@ Good news.  You can override some functions to make them look up org-node tables
             #'org-node-fakeroam-daily-note-p)
 #+end_src
 
-** Tips on configuring org-roam
+*** Tips on configuring org-roam
 These tips have nothing to do with this package in specific, but it's stuff I'd have liked to know.
 
-*** Word-wrap in the org-roam buffer
+**** Word-wrap in the org-roam buffer
 
 If you don't hard-wrap text but prefer visual-line-mode or similar, you have to enable such modes yourself -- it sensibly doesn't inherit your Org hooks ([[https://github.com/org-roam/org-roam/issues/1862][org-roam#1862]]):
 
@@ -145,7 +149,7 @@ If you don't hard-wrap text but prefer visual-line-mode or similar, you have to 
 (add-hook 'org-roam-mode-hook #'visual-line-mode)
 #+end_src
 
-*** Collapse sections by default
+**** Collapse sections by default
 
 If you prefer the org-roam buffer to start in collapsed state:
 
