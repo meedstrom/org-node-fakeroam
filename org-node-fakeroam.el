@@ -48,6 +48,9 @@
   (display-warning 'org-node-fakeroam
                    "org-node-fakeroam v3 depends on org-node v3"))
 
+;;;###autoload
+(defun org-node-fakeroam-placeholder-indicating-v3 ())
+
 
 ;;;; Utils
 
@@ -161,10 +164,12 @@ the window should be the first argument in ARGS."
         (with-current-buffer buf
           (rename-buffer org-roam-buffer))))))
 
+;; DEPRECATED
 ;;;###autoload
 (define-obsolete-function-alias 'org-node-fakeroam-fast-render-mode
   #'org-node-roam-accelerator-mode "2025-05-12")
 
+;; DEPRECATED
 ;;;###autoload
 (define-obsolete-function-alias 'org-node-fakeroam-jit-backlinks-mode
   #'org-mem-roamy-jit-backlinks-mode "2025-05-12")
