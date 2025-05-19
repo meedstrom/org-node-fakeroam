@@ -19,7 +19,7 @@
 ;; URL:      https://github.com/meedstrom/org-node-fakeroam
 ;; Created:  2024-04-13
 ;; Keywords: org, hypermedia
-;; Package-Requires: ((emacs "29.1") (org-mem "0.8.2") (org-node "3.0.0") (org-roam "2.2.2"))
+;; Package-Requires: ((emacs "29.1") (org-mem "0.8.2") (org-node "3.1.0") (org-roam "2.2.2"))
 
 ;;; Commentary:
 
@@ -67,26 +67,9 @@ This function only exists in case you had patched the definition of
 `org-roam-node-slug' and want to continue using your custom definition."
   (org-roam-node-slug (org-roam-node-create :title title)))
 
-;; TODO: Somehow make `org-node-fakeroam-new-via-roam-capture' able to do this?
 ;;;###autoload
-(defun org-node-fakeroam-daily-create (ymd seq-key &optional goto keys)
-  "Create a daily-note, for a day implied by YMD.
-YMD must be a time string in YYYY-MM-DD form.
-
-SEQ-KEY is the key that corresponds to the member of `org-node-seq-defs'
-that should grow with the captured item after the capture is done.
-
-GOTO and KEYS like in `org-roam-dailies--capture'."
-  (require 'org-roam-dailies)
-  (add-hook 'org-roam-capture-new-node-hook #'org-node-seq--add-item 90)
-  (setq org-node-proposed-seq seq-key)
-  (unwind-protect
-      (org-roam-dailies--capture
-       (encode-time
-        (parse-time-string (concat ymd (format-time-string " %T %z"))))
-       goto keys)
-    (remove-hook 'org-roam-capture-new-node-hook #'org-node-seq--add-item)
-    (setq org-node-proposed-seq nil)))
+(define-obsolete-function-alias 'org-node-fakeroam-daily-create
+  'org-node-seq-create-roam-daily "2025-05-19")
 
 
 ;;;; Bonus commands
@@ -172,7 +155,7 @@ the window should be the first argument in ARGS."
 ;; DEPRECATED
 ;;;###autoload
 (define-obsolete-function-alias 'org-node-fakeroam-jit-backlinks-mode
-  #'org-mem-roamy-jit-backlinks-mode "2025-05-12")
+  #'org-node-roam-accelerator-mode "2025-05-12")
 
 
 ;;;; Shim to feed data to the DB
@@ -230,11 +213,11 @@ Will stay nil until sometime after org-roam-dailies is loaded.")
 See docstring of `org-node-fakeroam-daily-dir'."
   (when (boundp 'org-roam-directory)
     (setq org-node-fakeroam-dir
-          (org-mem--abbrev-file-names
+          (org-mem--fast-abbrev
            (file-truename org-roam-directory)))
     (when (boundp 'org-roam-dailies-directory)
       (setq org-node-fakeroam-daily-dir
-            (org-mem--abbrev-file-names
+            (org-mem--fast-abbrev
              (file-truename
               (if (file-name-absolute-p org-roam-dailies-directory)
                   org-roam-dailies-directory
@@ -254,7 +237,7 @@ See docstring of `org-node-fakeroam-daily-dir'."
 ;; (benchmark-call (byte-compile #'org-node-fakeroam-list-files))
 (defun org-node-fakeroam-list-files ()
   "Faster than `org-roam-list-files'."
-  (cl-loop for file in (org-mem-org-files)
+  (cl-loop for file in (org-mem-all-files)
            when (string-prefix-p org-node-fakeroam-dir file)
            collect file))
 
@@ -267,7 +250,7 @@ Makes little difference if your filesystem is not a bottleneck.
 For argument EXTRA-FILES, see that function."
   (append extra-files
           (cl-loop
-           for file in (org-mem-org-files)
+           for file in (org-mem-all-files)
            when (string-prefix-p org-node-fakeroam-daily-dir file)
            collect file)))
 
@@ -281,12 +264,12 @@ For argument FILE, see that function.
 
 Does not run `file-truename', so not reliable if your Emacs
 allows variable `buffer-file-name' to be a symlink."
-  (setq file (org-mem--abbrev-file-names
+  (setq file (org-mem--fast-abbrev
               (or file (buffer-file-name (buffer-base-buffer)))))
   (and (string-suffix-p ".org" file)
        (string-prefix-p (downcase org-node-fakeroam-daily-dir)
                         (downcase file))
-       (cl-loop for exclude in org-mem-org-dirs-exclude
+       (cl-loop for exclude in org-mem-watch-dirs-exclude
                 never (string-search exclude file))))
 
 (provide 'org-node-fakeroam)
